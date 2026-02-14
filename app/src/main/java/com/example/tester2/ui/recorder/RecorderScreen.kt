@@ -26,9 +26,14 @@ import com.example.tester2.ui.theme.HiveWhite
 
 @Composable
 fun RecorderScreen(
+    topicId: String? = null,
     onRecordingSaved: () -> Unit,
     viewModel: RecorderViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(topicId) {
+        viewModel.setTopicId(topicId)
+    }
+
     val context = LocalContext.current
     var hasPermission by remember {
         mutableStateOf(

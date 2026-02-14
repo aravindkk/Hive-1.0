@@ -13,6 +13,8 @@ import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
 import javax.inject.Singleton
 
+import io.github.jan.supabase.functions.Functions
+
 @Module
 @InstallIn(SingletonComponent::class)
 object SupabaseModule {
@@ -28,6 +30,7 @@ object SupabaseModule {
             install(Auth)
             install(Storage)
             install(Realtime)
+            install(Functions)
         }
     }
 }

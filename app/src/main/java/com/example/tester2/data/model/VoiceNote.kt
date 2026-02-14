@@ -11,6 +11,8 @@ data class VoiceNote(
     @SerialName("storage_path")
     val storagePath: String,
     val transcript: String? = null,
+    @SerialName("topic_id")
+    val topicId: String? = null,
     @SerialName("created_at")
     val createdAt: String
 )

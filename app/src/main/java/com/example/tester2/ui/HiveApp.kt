@@ -1,27 +1,37 @@
 package com.example.tester2.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Mic
-import com.example.tester2.ui.theme.HiveTheme
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.tester2.ui.auth.AuthScreen
+import com.example.tester2.ui.hive.HiveScreen
+import com.example.tester2.ui.recorder.RecorderScreen
+import com.example.tester2.ui.theme.HiveGreen
+import com.example.tester2.ui.theme.HiveTheme
+import com.example.tester2.ui.timeline.TimelineScreen
 
 @Composable
 fun HiveApp() {
     HiveTheme {
         val navController = rememberNavController()
-
+        
         NavHost(navController = navController, startDestination = "auth") {
             composable("auth") {
                 AuthScreen(
@@ -32,31 +42,85 @@ fun HiveApp() {
                     }
                 )
             }
+            
             composable("home") {
-                androidx.compose.material3.Scaffold(
-                    floatingActionButton = {
-                        androidx.compose.material3.FloatingActionButton(
-                            onClick = { navController.navigate("record") },
-                            containerColor = com.example.tester2.ui.theme.HiveGreen
-                        ) {
-                            androidx.compose.material3.Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.Mic,
-                                contentDescription = "Record",
-                                tint = androidx.compose.ui.graphics.Color.White
-                            )
-                        }
+                MainScreen(
+                    onRecordClick = { topicId -> 
+                        val route = if (topicId != null) "record?topicId=$topicId" else "record"
+                        navController.navigate(route)
                     }
-                ) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                        com.example.tester2.ui.timeline.TimelineScreen()
-                    }
-                }
+                )
             }
-            composable("record") {
-                com.example.tester2.ui.recorder.RecorderScreen(
+            
+            composable(
+                route = "record?topicId={topicId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("topicId") {
+                        nullable = true
+                        defaultValue = null
+                        type = androidx.navigation.NavType.StringType
+                    }
+                )
+            ) { backStackEntry ->
+                RecorderScreen(
+                    topicId = backStackEntry.arguments?.getString("topicId"),
                     onRecordingSaved = {
                         navController.popBackStack()
                     }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MainScreen(onRecordClick: (String?) -> Unit) {
+    val navController = rememberNavController()
+    
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
+                
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.List, contentDescription = "Feed") },
+                    label = { Text("Feed") },
+                    selected = currentDestination?.route == "feed",
+                    onClick = { navController.navigate("feed") { launchSingleTop = true } }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Map, contentDescription = "Hive") },
+                    label = { Text("Hive") },
+                    selected = currentDestination?.route == "hive",
+                    onClick = { navController.navigate("hive") { launchSingleTop = true } }
+                )
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { onRecordClick(null) },
+                containerColor = HiveGreen
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Record",
+                    tint = Color.White
+                )
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController, 
+            startDestination = "feed", 
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("feed") {
+                TimelineScreen()
+            }
+            composable("hive") {
+                HiveScreen(
+                    onContributeClick = { topicId -> onRecordClick(topicId) }
                 )
             }
         }

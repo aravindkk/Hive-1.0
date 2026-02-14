@@ -36,6 +36,11 @@ class RecorderViewModel @Inject constructor(
     val uploadError = _uploadError.asStateFlow()
 
     private var currentFile: File? = null
+    private var currentTopicId: String? = null
+    
+    fun setTopicId(topicId: String?) {
+        currentTopicId = topicId
+    }
 
     fun startRecording() {
         // Create file
@@ -77,11 +82,13 @@ class RecorderViewModel @Inject constructor(
             
             result.onSuccess { path ->
                 // Create DB entry
-                val dbResult = voiceRepository.createVoiceNote(path)
+                val dbResult = voiceRepository.createVoiceNote(path, currentTopicId)
                 _isUploading.value = false
                 
                 dbResult.onSuccess {
                     println("Voice note created in DB")
+                    // Trigger transcription
+                    voiceRepository.transcribeAudio(path)
                 }
                 dbResult.onFailure { e ->
                     _uploadError.value = "DB Error: ${e.message}"

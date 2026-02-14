@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.supabase.gotrue)
     implementation(libs.supabase.storage)
     implementation(libs.supabase.realtime)
+    implementation(libs.supabase.functions)
 
     // Ktor
     implementation(libs.ktor.client.android)
@@ -101,6 +102,13 @@ dependencies {
 
     // Permissions
     implementation(libs.accompanist.permissions)
+
+    // Location
+    implementation(libs.play.services.location)
+    
+    // Maps
+    implementation(libs.google.maps.compose)
+    implementation(libs.play.services.maps)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

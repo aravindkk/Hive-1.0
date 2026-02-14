@@ -1,0 +1,93 @@
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.21.0";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
+
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+    // Handle CORS
+    if (req.method === "OPTIONS") {
+        return new Response("ok", { headers: corsHeaders });
+    }
+
+    try {
+        const { storage_path } = await req.json();
+
+        if (!storage_path) {
+            throw new Error("Missing storage_path");
+        }
+
+        console.log(`Starting transcription for: ${storage_path}`);
+
+        // 1. Initialize Supabase
+        const supabaseClient = createClient(
+            Deno.env.get("SUPABASE_URL") ?? "",
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+
+        // 2. Download File
+        const { data: fileData, error: downloadError } = await supabaseClient.storage
+            .from("audio-notes")
+            .download(storage_path);
+
+        if (downloadError) throw downloadError;
+
+        console.log("File downloaded successfully.");
+
+        // 3. Convert Blob to Base64 (Gemini inline data)
+        const arrayBuffer = await fileData.arrayBuffer();
+        const base64Audio = btoa(
+            new Uint8Array(arrayBuffer).reduce(
+                (data, byte) => data + String.fromCharCode(byte),
+                ""
+            )
+        );
+
+        // 4. Call Gemini
+        const genAI = new GoogleGenerativeAI(Deno.env.get("GEMINI_API_KEY") ?? "");
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = "Transcribe the following audio file. Return only the transcript text.";
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    mimeType: "audio/mp4", // Assuming m4a/mp4 container
+                    data: base64Audio,
+                },
+            },
+        ]);
+        const response = await result.response;
+        const transcript = response.text();
+
+        console.log("Transcription complete.");
+
+        // 5. Update Database
+        // We need to find the ID corresponding to this storage_path
+        // Ideally we pass the ID, but for now we query by path or expect ID in input.
+        // Let's query by path for simplicity if ID isn't passed, but ID is safer.
+        // For this MVP, let's update based on storage_path match.
+
+        const { error: updateError } = await supabaseClient
+            .from("voices")
+            .update({ transcript: transcript })
+            .eq("storage_path", storage_path);
+
+        if (updateError) throw updateError;
+
+        return new Response(JSON.stringify({ transcript }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+        });
+    } catch (error) {
+        console.error("Error:", error.message);
+        return new Response(JSON.stringify({ error: error.message }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+        });
+    }
+});
