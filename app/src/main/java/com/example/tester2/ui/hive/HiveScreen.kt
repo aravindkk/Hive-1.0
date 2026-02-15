@@ -2,6 +2,7 @@ package com.example.tester2.ui.hive
 
 import android.Manifest
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -85,10 +86,17 @@ fun HiveScreen(
                 modifier = Modifier.align(Alignment.Center)
             )
         } else if (location == null) {
-            Text(
-                "Waiting for location...",
-                modifier = Modifier.align(Alignment.Center)
-            )
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                 Text("Waiting for location...")
+                 if (!locationPermissions.allPermissionsGranted) {
+                     Button(onClick = { locationPermissions.launchMultiplePermissionRequest() }) {
+                         Text("Grant Location Permission")
+                     }
+                 }
+            }
         } else {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),

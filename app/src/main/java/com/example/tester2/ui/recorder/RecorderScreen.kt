@@ -103,6 +103,27 @@ fun RecorderContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val prompts = remember {
+                listOf(
+                    "What's happening in your area?",
+                    "What's top of mind for you?",
+                    "How is it going?",
+                    "What's on your mind?",
+                    "Share a thought with the Hive!"
+                )
+            }
+            val randomPrompt = remember { prompts.random() }
+
+            if (!isRecording && !isUploading && (recordedFile == null || uploadError != null)) {
+                 Text(
+                    text = randomPrompt,
+                    style = MaterialTheme.typography.headlineSmall,
+                     color = Color.Black,
+                     modifier = Modifier.padding(bottom = 32.dp),
+                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+
             if (isRecording) {
                 Text(
                     text = "Recording...",
