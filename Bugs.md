@@ -8,4 +8,9 @@
 8. [Done] The user name is not fancy or memorable... (Implemented Creative Username Generator)
 9. [Done] Clicking on user name is not aking user to the Feed screen... (Fixed TopBar Click Handler)
 10. [Done] The mic recording page no navigation buttons... (Integrated Recorder into Main Navigation)
-11. [Done] The voice clips are stuck at processing... (Fixed Realtime Connection and Storage Policies)
+11. [Done] [Open-1] The voice clips are stuck at processing... (Fixed Realtime Connection and Storage Policies)
+12. Change the login screen to the attached screenshot.
+13. The app should have a splash screen. Use the design attached as the splash screen.
+14. Add the icon for this Android app(attached icon)
+15. New voice recordings are not shown on the screen. Not sure if they are getting processed. No transcript is generated or shown to user.
+16. Location permission is asked but it is not turning on the location on the phone. So while the location permission is requested from the user, the location is not turned on.

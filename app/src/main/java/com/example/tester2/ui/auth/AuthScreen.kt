@@ -55,35 +55,17 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo
-            Box(
+            // Hero Image
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.example.tester2.R.drawable.login_hero),
+                contentDescription = "Hive Login Hero",
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(HiveYellow),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.GraphicEq,
-                    contentDescription = "Hive Logo",
-                    tint = HiveDarkGray,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Hive",
-                style = MaterialTheme.typography.displayLarge.copy(fontSize = 48.sp),
-                color = HiveDarkGray
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit
             )
-
-            Text(
-                text = "Connect. Think. Feel.",
-                style = MaterialTheme.typography.bodyLarge.copy(letterSpacing = 2.sp),
-                color = HiveMediumGray
-            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
 
             Spacer(modifier = Modifier.height(32.dp))
             

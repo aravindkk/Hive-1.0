@@ -34,14 +34,35 @@ import com.example.tester2.ui.hive.HiveScreen
 import com.example.tester2.ui.recorder.RecorderScreen
 import com.example.tester2.ui.theme.HiveGreen
 import com.example.tester2.ui.theme.HiveTheme
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxSize
 import com.example.tester2.ui.timeline.TimelineScreen
+import com.example.tester2.R
+import android.app.Activity
+import android.content.IntentSender
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.Priority
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun HiveApp() {
     HiveTheme {
         val navController = rememberNavController()
         
-        NavHost(navController = navController, startDestination = "auth") {
+        NavHost(navController = navController, startDestination = "splash") {
+            composable("splash") {
+                SplashScreen(onTimeout = {
+                    navController.navigate("auth") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                })
+            }
             composable("auth") {
                 AuthScreen(
                     onLoginSuccess = {
@@ -56,6 +77,25 @@ fun HiveApp() {
                 MainScreen()
             }
         }
+    }
+}
+
+@Composable
+fun SplashScreen(onTimeout: () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2000)
+        onTimeout()
+    }
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.example.tester2.R.drawable.splash_background),
+            contentDescription = "Splash Screen",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
     }
 }
 
@@ -76,8 +116,29 @@ fun MainScreen(
         )
     )
     
+    val context = LocalContext.current
+    val locationSettingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { /* No-op: Check again if needed */ }
+
     androidx.compose.runtime.LaunchedEffect(Unit) {
         multiplePermissionsState.launchMultiplePermissionRequest()
+        
+        // Check if GPS is enabled
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
+        val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
+        val client = LocationServices.getSettingsClient(context)
+        
+        client.checkLocationSettings(builder.build()).addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
+                try {
+                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    locationSettingsLauncher.launch(intentSenderRequest)
+                } catch (sendEx: IntentSender.SendIntentException) {
+                    // Ignore
+                }
+            }
+        }
     }
     
     Scaffold(
@@ -94,7 +155,7 @@ fun MainScreen(
                         },
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                     ) {
-                        Text(text = username?.let { "User: $it" } ?: "Hive User")
+                        Text(text = username?.let { "$it" } ?: "Hive User")
                     }
                 },
                 actions = {
