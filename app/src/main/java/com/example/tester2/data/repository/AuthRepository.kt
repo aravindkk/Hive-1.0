@@ -16,6 +16,7 @@ interface AuthRepository {
     suspend fun signOut()
     suspend fun isUserLoggedIn(): Boolean
     suspend fun getCurrentUserId(): String?
+    suspend fun getCurrentUsername(): String?
 }
 
 class AuthRepositoryImpl @Inject constructor(
@@ -64,6 +65,11 @@ class AuthRepositoryImpl @Inject constructor(
         return supabase.auth.currentUserOrNull()?.id
     }
 
+    override suspend fun getCurrentUsername(): String? {
+        val metadata = supabase.auth.currentUserOrNull()?.userMetadata
+        return metadata?.get("username")?.toString()?.removeSurrounding("\"")
+    }
+
     private suspend fun generateUniqueUsername(): String {
         var username = ""
         var isUnique = false
@@ -97,10 +103,17 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     private fun generateRandomUsername(): String {
-        val adjective = Adjectives.random()
-        val noun = Nouns.random()
-        val number = Random.nextInt(10, 99)
-        return "$adjective$noun$number"
+        val adjectives = listOf(
+            "Neon", "Solar", "Cyber", "Lunar", "Sonic", "Rapid", "Cosmic", "Hyper", "Mega", "Ultra",
+            "Misty", "Frozen", "Golden", "Silver", "Iron", "Electric", "Dark", "Bright", "Swift", "Brave",
+            "Calm", "Wild", "Crimson", "Azure", "Emerald", "Violet", "Mystic", "Arcane", "Prime", "Elite"
+        )
+        val nouns = listOf(
+            "Tiger", "Eagle", "Wolf", "Bear", "Lion", "Hawk", "Falcon", "Shark", "Dragon", "Phoenix",
+            "Viper", "Cobra", "Raven", "Owl", "Fox", "Panther", "Panda", "Koala", "Otter", "Seal",
+            "Star", "Moon", "Sun", "Comet", "Nebula", "Galaxy", "Orbit", "Pulse", "Wave", "Storm"
+        )
+        return "${adjectives.random()}${nouns.random()}"
     }
 
     companion object {

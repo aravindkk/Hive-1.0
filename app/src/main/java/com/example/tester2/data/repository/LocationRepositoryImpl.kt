@@ -22,9 +22,14 @@ class LocationRepositoryImpl @Inject constructor(
 
     @SuppressLint("MissingPermission") // Checked in UI
     override fun getLocationUpdates(intervalMs: Long): Flow<Location> = callbackFlow {
+        // Try to get last known location first
+        client.lastLocation.addOnSuccessListener { location ->
+            location?.let { trySend(it) }
+        }
+
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
             .build()
-
+            
         val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 result.lastLocation?.let { trySend(it) }

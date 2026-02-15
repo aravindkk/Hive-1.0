@@ -25,7 +25,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.runtime.collectAsState
 import com.example.tester2.ui.auth.AuthScreen
+import com.example.tester2.ui.auth.AuthViewModel
 import com.example.tester2.ui.hive.HiveScreen
 import com.example.tester2.ui.recorder.RecorderScreen
 import com.example.tester2.ui.theme.HiveGreen
@@ -49,44 +53,50 @@ fun HiveApp() {
             }
             
             composable("home") {
-                MainScreen(
-                    onRecordClick = { topicId -> 
-                        val route = if (topicId != null) "record?topicId=$topicId" else "record"
-                        navController.navigate(route)
-                    }
-                )
-            }
-            
-            composable(
-                route = "record?topicId={topicId}",
-                arguments = listOf(
-                    androidx.navigation.navArgument("topicId") {
-                        nullable = true
-                        defaultValue = null
-                        type = androidx.navigation.NavType.StringType
-                    }
-                )
-            ) { backStackEntry ->
-                RecorderScreen(
-                    topicId = backStackEntry.arguments?.getString("topicId"),
-                    onRecordingSaved = {
-                        navController.popBackStack()
-                    }
-                )
+                MainScreen()
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
 @Composable
-fun MainScreen(onRecordClick: (String?) -> Unit) {
+fun MainScreen(
+    authViewModel: com.example.tester2.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+) {
     val navController = rememberNavController()
+    val username by authViewModel.username.collectAsState()
+    
+    // Request permissions on launch
+    val multiplePermissionsState = com.google.accompanist.permissions.rememberMultiplePermissionsState(
+        listOf(
+            android.Manifest.permission.RECORD_AUDIO,
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+    
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        multiplePermissionsState.launchMultiplePermissionRequest()
+    }
     
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Hive User") }, // Placeholder for now
+                title = { 
+                    Row(
+                        modifier = Modifier.clickable {
+                            navController.navigate("feed") {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Text(text = username?.let { "User: $it" } ?: "Hive User")
+                    }
+                },
                 actions = {
                     IconButton(onClick = { /* TODO: Settings */ }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -103,19 +113,31 @@ fun MainScreen(onRecordClick: (String?) -> Unit) {
                     icon = { Icon(Icons.Default.List, contentDescription = "Feed") },
                     label = { Text("Feed") },
                     selected = currentDestination?.route == "feed",
-                    onClick = { navController.navigate("feed") { launchSingleTop = true } }
+                    onClick = { 
+                        navController.navigate("feed") { 
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        } 
+                    }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Map, contentDescription = "Hive") },
                     label = { Text("Hive") },
                     selected = currentDestination?.route == "hive",
-                    onClick = { navController.navigate("hive") { launchSingleTop = true } }
+                    onClick = { 
+                        navController.navigate("hive") { 
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        } 
+                    }
                 )
             }
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onRecordClick(null) },
+                onClick = { navController.navigate("record") },
                 containerColor = HiveGreen
             ) {
                 Icon(
@@ -136,7 +158,27 @@ fun MainScreen(onRecordClick: (String?) -> Unit) {
             }
             composable("hive") {
                 HiveScreen(
-                    onContributeClick = { topicId -> onRecordClick(topicId) }
+                    onContributeClick = { topicId -> 
+                         val route = "record?topicId=$topicId"
+                         navController.navigate(route)
+                    }
+                )
+            }
+            composable(
+                route = "record?topicId={topicId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("topicId") {
+                        nullable = true
+                        defaultValue = null
+                        type = androidx.navigation.NavType.StringType
+                    }
+                )
+            ) { backStackEntry ->
+                RecorderScreen(
+                    topicId = backStackEntry.arguments?.getString("topicId"),
+                    onRecordingSaved = {
+                        navController.popBackStack()
+                    }
                 )
             }
         }

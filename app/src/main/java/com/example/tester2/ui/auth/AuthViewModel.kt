@@ -32,6 +32,9 @@ class AuthViewModel @Inject constructor(
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn = _isLoggedIn.asStateFlow()
 
+    private val _username = MutableStateFlow<String?>(null)
+    val username = _username.asStateFlow()
+
     init {
         checkLoginStatus()
     }
@@ -39,6 +42,9 @@ class AuthViewModel @Inject constructor(
     private fun checkLoginStatus() {
         viewModelScope.launch {
             _isLoggedIn.value = repository.isUserLoggedIn()
+            if (_isLoggedIn.value) {
+                _username.value = repository.getCurrentUsername()
+            }
         }
     }
 

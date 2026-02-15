@@ -15,6 +15,8 @@ import javax.inject.Singleton
 
 import io.github.jan.supabase.functions.Functions
 
+import io.ktor.client.engine.cio.CIO
+
 @Module
 @InstallIn(SingletonComponent::class)
 object SupabaseModule {
@@ -26,6 +28,7 @@ object SupabaseModule {
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY
         ) {
+            httpEngine = CIO.create()
             install(Postgrest)
             install(Auth)
             install(Storage)
