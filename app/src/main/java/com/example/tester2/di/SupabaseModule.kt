@@ -14,13 +14,18 @@ import io.github.jan.supabase.storage.Storage
 import javax.inject.Singleton
 
 import io.github.jan.supabase.functions.Functions
-
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
+
+import io.github.jan.supabase.annotations.SupabaseInternal
 
 @Module
 @InstallIn(SingletonComponent::class)
 object SupabaseModule {
 
+    @OptIn(SupabaseInternal::class)
     @Provides
     @Singleton
     fun provideSupabaseClient(): SupabaseClient {
@@ -29,6 +34,14 @@ object SupabaseModule {
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY
         ) {
             httpEngine = CIO.create()
+            httpConfig {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        encodeDefaults = true
+                    })
+                }
+            }
             install(Postgrest)
             install(Auth)
             install(Storage)

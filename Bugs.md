@@ -77,3 +77,38 @@ Reported by: User
 Fix: Added `NavigationBarItem` for "Local Hive" in `HiveApp.kt` pointing to the `local_hive` route. Using `BubbleChart` icon.
 Fix status: Done
 Review status: Resolved
+
+26.
+Bug description: Users requested that the username not be shown on the login screen if there is no active session (i.e., for new users or after clearing data). It should only be shown for returning users to allow one-click login.
+Reported by: User
+Fix: Updated `AuthScreen.kt` to conditionally display the User ID Card only if `canAutoLogin` is true (which is determined by `PreferenceManager` checking for a valid ID and recent login timestamp). New users will only see "Create Account" and "Sign In" options.
+Fix status: Done
+Review status: Resolved
+
+27.
+Bug description: Clicking on the "Welcome Back" username to auto-login fails, and the displayed username is often different from the one actually logged in.
+Reported by: User
+Fix: In `AuthViewModel`, removed `preferenceManager.saveLastGeneratedId(newId)` from `generateNewId()`.  Moved this call to `performAuth`'s `onSuccess` block. This prevents temporary/candidate IDs from overwriting the valid stored ID of the last successfully logged-in user.
+Fix status: Done
+Review status: Resolved
+
+28.
+Bug description: After recording a voice note, the "Saved & Uploaded!" screen persists indefinitely instead of redirecting back to the previous screen.
+Reported by: User
+Fix: In `RecorderScreen.kt`, added a `LaunchedEffect` that observes `isUploading`, `recordedFile`, and `uploadError`. When the upload is complete (isUploading=false, file!=null, error=null), the effect waits for 2 seconds (for smooth UX) before triggering the navigation callback `onRecordingSaved`.
+Fix status: Done
+Review status: Resolved
+
+29.
+Bug description: New voice records are not appearing in the Feed list view after recording. Redirect happens, but list is stale.
+Reported by: User
+Fix: Added a `refresh()` method to `TimelineViewModel` that re-launches the flow collection (cancelling any previous job). Updated `TimelineScreen` to call `viewModel.refresh()` inside a `LaunchedEffect(Unit)`, ensuring the list is re-fetched every time the user navigates back to the feed.
+Fix status: Done
+Review status: Resolved
+
+30.
+Bug description: POST request to /functions/v1/transcribe-audio failed with `Fail to prepare request body for sending`. Ktor client lacked `Content-Type` for `JsonObject`.
+Reported by: User
+Fix: In `SupabaseModule.kt`, configured the `device-less` Ktor client engine to install `ContentNegotiation` with `kotlinx-serialization-json`. Added `ktor-client-content-negotiation` and `ktor-serialization-kotlinx-json` dependencies in `libs.versions.toml` and `build.gradle.kts` to support automatic JSON serialization of `JsonObject` bodies.
+Fix status: Done
+Review status: Resolved

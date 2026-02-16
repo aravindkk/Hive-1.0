@@ -12,11 +12,15 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LocalHiveViewModel @Inject constructor(
-    private val topicRepository: TopicRepository
+    private val topicRepository: TopicRepository,
+    private val voiceRepository: com.example.tester2.data.repository.VoiceRepository,
+    private val audioPlayer: com.example.tester2.utils.AudioPlayer
 ) : ViewModel() {
 
     private val _popularTopics = MutableStateFlow<List<Topic>>(emptyList())
     val popularTopics = _popularTopics.asStateFlow()
+
+    val playingUrl = audioPlayer.playingUrl
 
     init {
         fetchTopics()
@@ -31,6 +35,19 @@ class LocalHiveViewModel @Inject constructor(
                 }
             }
         }
+    }
+    
+    fun toggleAudio(url: String) {
+        if (playingUrl.value == url) {
+            audioPlayer.stop()
+        } else {
+            audioPlayer.play(url)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        audioPlayer.stop()
     }
     
     private fun getDummyPopularTopics(): List<Topic> {

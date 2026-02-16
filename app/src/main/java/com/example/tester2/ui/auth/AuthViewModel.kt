@@ -72,7 +72,7 @@ class AuthViewModel @Inject constructor(
         val animals = listOf("Fox", "Bear", "Wolf", "Tiger", "Eagle", "Panda", "Shark", "Hawk")
         val newId = "${adjectives.random()}${animals.random()}${ (10..99).random() }"
         _generatedId.value = newId
-        preferenceManager.saveLastGeneratedId(newId)
+        // preferenceManager.saveLastGeneratedId(newId) // Do not save candidate ID until logged in
         _canAutoLogin.value = false // New ID means new user, no auto-login yet
     }
     
@@ -158,6 +158,12 @@ class AuthViewModel @Inject constructor(
             result.onSuccess {
                 _isLoggedIn.value = true
                 preferenceManager.saveLastLoginTimestamp(System.currentTimeMillis())
+                // Verify if we should save the ID. For anonymous flow, generatedId is the source.
+                // For manual email/pass login, we might not want to overwrite it with "User" or null unless we map it.
+                // Assuming this flow is primarily for the anonymous ID card system:
+                if (email.endsWith("@hive.anonymous")) {
+                    preferenceManager.saveLastGeneratedId(_generatedId.value)
+                }
             }.onFailure {
                 _errorMessage.value = it.message ?: "Authentication failed"
             }

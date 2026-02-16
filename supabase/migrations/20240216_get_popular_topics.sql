@@ -1,6 +1,9 @@
 -- RPC Function to fetch topics sorted by popularity (voice count)
 -- Usage: select * from get_popular_topics()
-create or replace function get_popular_topics()
+-- Drop to avoid signature conflicts
+DROP FUNCTION IF EXISTS public.get_popular_topics();
+
+create or replace function public.get_popular_topics()
 returns table (
   id uuid,
   title text,
@@ -26,3 +29,6 @@ as $$
   group by t.id
   order by voice_count desc;
 $$;
+
+-- Explicitly grant execute permission
+GRANT EXECUTE ON FUNCTION public.get_popular_topics() TO anon, authenticated, service_role;

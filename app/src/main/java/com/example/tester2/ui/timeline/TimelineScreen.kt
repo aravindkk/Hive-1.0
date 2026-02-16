@@ -32,6 +32,10 @@ fun TimelineScreen(
     val voiceNotes by viewModel.voiceNotes.collectAsState()
     val playingUrl by viewModel.playingUrl.collectAsState()
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

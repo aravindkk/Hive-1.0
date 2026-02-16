@@ -272,7 +272,11 @@ fun MainScreen(
             ) { backStackEntry ->
                 TopicDeepDiveScreen(
                     topicId = backStackEntry.arguments?.getString("topicId"),
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onSpeakClick = { topicId ->
+                        val route = if (topicId != null) "record?topicId=$topicId" else "record"
+                        navController.navigate(route)
+                    }
                 )
             }
         }

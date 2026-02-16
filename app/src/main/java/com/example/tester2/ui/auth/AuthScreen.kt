@@ -123,75 +123,64 @@ fun LandingScreen(viewModel: AuthViewModel) {
             color = HiveMediumGray
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
-
         // User ID Card
         val canAutoLogin by viewModel.canAutoLogin.collectAsState()
         
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = canAutoLogin) { viewModel.attemptAutoLogin() },
-            shape = RoundedCornerShape(50),
-            color = if (canAutoLogin) HiveWhite.copy(alpha = 0.9f) else HiveWhite.copy(alpha = 0.6f),
-            border = androidx.compose.foundation.BorderStroke(
-                width = if (canAutoLogin) 2.dp else 1.dp, 
-                color = if (canAutoLogin) HiveGreen else HiveWhite
-            )
-        ) {
-            Row(
+        if (canAutoLogin) {
+            Surface(
                 modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxWidth()
+                    .clickable { viewModel.attemptAutoLogin() },
+                shape = RoundedCornerShape(50),
+                color = HiveWhite.copy(alpha = 0.9f),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 2.dp, 
+                    color = HiveGreen
+                )
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(48.dp)
-                        .background(if (canAutoLogin) HiveGreen.copy(alpha = 0.2f) else HiveYellow.copy(alpha = 0.3f), CircleShape),
-                    contentAlignment = Alignment.Center
+                        .padding(8.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "User Icon",
-                        tint = if (canAutoLogin) HiveGreen else Color(0xFF854D0E)
-                    )
-                }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(HiveGreen.copy(alpha = 0.2f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "User Icon",
+                            tint = HiveGreen
+                        )
+                    }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (canAutoLogin) "WELCOME BACK" else "YOUR ID",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (canAutoLogin) HiveGreen else HiveMediumGray
-                    )
-                    Text(
-                        text = generatedId,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = HiveDarkGray
-                    )
-                    if (canAutoLogin) {
-                         Text(
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "WELCOME BACK",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = HiveGreen
+                        )
+                        Text(
+                            text = generatedId,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = HiveDarkGray
+                        )
+                        Text(
                             text = "Tap to Login",
                             style = MaterialTheme.typography.labelSmall,
                             color = HiveGreen
                         )
                     }
                 }
-
-                if (!canAutoLogin) {
-                    IconButton(onClick = viewModel::onRefreshId) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh ID",
-                            tint = HiveMediumGray
-                        )
-                    }
-                }
             }
+            Spacer(modifier = Modifier.height(16.dp))
         }
         
         Spacer(modifier = Modifier.height(16.dp))

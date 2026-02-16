@@ -84,14 +84,13 @@ fun RecorderContent(
     val isUploading by viewModel.isUploading.collectAsState()
     val uploadError by viewModel.uploadError.collectAsState()
 
-    /* 
-    // Temporarily disabled navigation to show upload status
-    LaunchedEffect(recordedFile) {
-        if (recordedFile != null) {
+    // Navigation after successful upload
+    LaunchedEffect(isUploading, recordedFile, uploadError) {
+        if (!isUploading && recordedFile != null && uploadError == null) {
+            kotlinx.coroutines.delay(2000)
             onRecordingSaved()
         }
-    } 
-    */
+    }
 
     Box(
         modifier = Modifier

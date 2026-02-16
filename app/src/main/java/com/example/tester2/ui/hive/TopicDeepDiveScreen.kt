@@ -30,7 +30,8 @@ import kotlinx.coroutines.delay
 fun TopicDeepDiveScreen(
     topicId: String?,
     onBackClick: () -> Unit,
-    viewModel: LocalHiveViewModel = hiltViewModel() // Reusing for simplicity or create specific VM
+    onSpeakClick: (String?) -> Unit,
+    viewModel: LocalHiveViewModel = hiltViewModel()
 ) {
     // In a real app, fetch topic details by ID. For now, mocking data based on ID.
     val topicTitle = when(topicId) {
@@ -40,22 +41,11 @@ fun TopicDeepDiveScreen(
         else -> "Topic Details"
     }
 
-    var isPlaying by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(0f) }
-
-    // Mock playing simulation
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            val startTime = System.currentTimeMillis()
-            val duration = 10000L // 10 seconds mock
-            while (isPlaying && progress < 1f) {
-                val elapsed = System.currentTimeMillis() - startTime
-                progress = (elapsed / duration.toFloat()).coerceIn(0f, 1f)
-                delay(100)
-                if (progress >= 1f) isPlaying = false
-            }
-        }
-    }
+    val playingUrl by viewModel.playingUrl.collectAsState()
+    
+    // Mock Audio URL for now - in production this would be topic.summaryAudioUrl
+    val audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" 
+    val isPlaying = playingUrl == audioUrl
 
     Column(
         modifier = Modifier
@@ -64,6 +54,8 @@ fun TopicDeepDiveScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        // ... (Top Bar and Title sections remain same) ...
+        
         // Top Bar
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -128,9 +120,9 @@ fun TopicDeepDiveScreen(
                 strokeWidth = 2.dp,
             )
             
-            // Progress Ring
+            // Progress Ring (Mock progress for visual flair, or hook up to real player progress if available)
             CircularProgressIndicator(
-                 progress = { progress },
+                 progress = { if (isPlaying) 0.6f else 0f }, // Static progress for now
                  modifier = Modifier.fillMaxSize(),
                  color = HiveGreen,
                  strokeWidth = 6.dp,
@@ -139,8 +131,7 @@ fun TopicDeepDiveScreen(
             // Play Button
             Button(
                 onClick = { 
-                    isPlaying = !isPlaying 
-                    if (!isPlaying) progress = 0f // Reset on stop for demo
+                    viewModel.toggleAudio(audioUrl)
                 },
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(containerColor = HiveGreen.copy(alpha = 0.1f)),
@@ -185,7 +176,7 @@ fun TopicDeepDiveScreen(
         
         // Footer CTA
         Button(
-            onClick = { /* TODO: Open Recorder */ },
+            onClick = { onSpeakClick(topicId) },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = HiveGreen)
         ) {

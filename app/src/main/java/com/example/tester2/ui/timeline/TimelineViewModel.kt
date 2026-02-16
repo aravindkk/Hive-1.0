@@ -21,12 +21,19 @@ class TimelineViewModel @Inject constructor(
     
     val playingUrl = audioPlayer.playingUrl
 
+    private var voiceJob: kotlinx.coroutines.Job? = null
+
     init {
         loadVoiceNotes()
     }
 
+    fun refresh() {
+        loadVoiceNotes()
+    }
+
     private fun loadVoiceNotes() {
-        viewModelScope.launch {
+        voiceJob?.cancel()
+        voiceJob = viewModelScope.launch {
             voiceRepository.getMyVoiceNotes().collect { notes ->
                 _voiceNotes.value = notes
             }
