@@ -197,6 +197,18 @@ fun MainScreen(
                         } 
                     }
                 )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.BubbleChart, contentDescription = "Local Hive") },
+                    label = { Text("Local Hive") },
+                    selected = currentDestination?.route == "local_hive",
+                    onClick = { 
+                        navController.navigate("local_hive") { 
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        } 
+                    }
+                )
             }
         },
         floatingActionButton = {

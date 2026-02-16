@@ -70,3 +70,10 @@ Reported by: User
 Fix: Created `PreferenceManager` to store `last_generated_id` and `last_login_timestamp`. Updated `AuthViewModel` to load the stored ID on launch and enable `autoLogin` if within the 30-day window. Modified `AuthScreen` to make the ID card clickable, triggering `attemptAutoLogin` and showing "WELCOME BACK" for returning users.
 Fix status: Done
 Review status: Resolved
+
+25.
+Bug description: "Local Hive" tab is missing from the app navigation bar.
+Reported by: User
+Fix: Added `NavigationBarItem` for "Local Hive" in `HiveApp.kt` pointing to the `local_hive` route. Using `BubbleChart` icon.
+Fix status: Done
+Review status: Resolved
