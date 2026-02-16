@@ -14,3 +14,38 @@
 14. Add the icon for this Android app(attached icon)
 15. New voice recordings are not shown on the screen. Not sure if they are getting processed. No transcript is generated or shown to user.
 16. Location permission is asked but it is not turning on the location on the phone. So while the location permission is requested from the user, the location is not turned on.
+
+17.
+Bug description: POST request to endpoint /functions/v1/transcribe-audio failed with exception Fail to prepare request body for sending: class java.util.Collections$SingletonMap
+Reported by: User
+Fix: In `VoiceRepositoryImpl.kt`, changed the request body from `mapOf()` to `buildJsonObject`. Ktor's serialization plugin (with Supabase) requires a strictly typed JsonObject to serialize correctly when using the CIO engine.
+Fix status: Done
+Review status: Resolved
+
+18.
+Bug description: Can't replay the audio clip when I click on the play button in the Feed tab for previous voice clips.
+Reported by: User
+Fix: Implemented `AudioPlayer` class using Android `MediaPlayer`. Updated `TimelineViewModel` and `HiveViewModel` to manage playback state. Added play/stop logic to `TimelineScreen` and `TopicDetailSheet`. Added `getAudioUrl` to `VoiceRepository` to construct public URLs for `audio-notes` bucket.
+Fix status: Done
+Review status: Resolved
+
+19.
+Bug description: Login screen design is screwed up.
+Reported by: User
+Fix: Redesigned the `AuthScreen.kt` to match the provided mockup. Implemented `HiveCream` radial background, custom logo, generated user ID card, and separate anonymous login flow in `AuthViewModel` with `generatedId` and `createAnonymousAccount`.
+Fix status: Done
+Review status: Resolved
+
+20.
+Bug description: I should be able to see topics from anywhere on the map, not just nearby topics.
+Reported by: User
+Fix: Implemented `get_topics_in_bounds` RPC in Supabase (PostGIS). Updated `TopicRepository` and `TopicRepositoryImpl` to query topics within min/max lat/lng bounds. Modified `HiveViewModel` to handle `onCameraIdle` events and fetch topics for the current viewport. Updated `HiveScreen.kt` with `MapEffect` to detect camera idle state and trigger fetching.
+Fix status: Done
+Review status: Resolved
+
+21.
+Bug description: Create a third tab called “Local Hive” and just show all topics as circles of varying sizes depending on how popular that topic is.
+Reported by: User
+Fix: Implemented "Local Hive" tab with bubble visualization in `LocalHiveScreen.kt`, using `voiceCount` from `get_popular_topics` RPC. Clicking a bubble opens `TopicDeepDiveScreen.kt`, which features a mocked AI audio summary with transcript and playback controls. Updated `HiveApp.kt` navigation.
+Fix status: Done
+Review status: Resolved

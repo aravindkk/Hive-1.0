@@ -23,7 +23,8 @@ import com.example.tester2.data.repository.VoiceRepository
 class HiveViewModel @Inject constructor(
     private val locationRepository: LocationRepository,
     private val topicRepository: TopicRepository,
-    private val voiceRepository: VoiceRepository
+    private val voiceRepository: VoiceRepository,
+    private val audioPlayer: com.example.tester2.utils.AudioPlayer
 ) : ViewModel() {
 
     private val _location = MutableStateFlow<Location?>(null)
@@ -37,28 +38,45 @@ class HiveViewModel @Inject constructor(
     
     private val _topicVoices = MutableStateFlow<List<VoiceNote>>(emptyList())
     val topicVoices = _topicVoices.asStateFlow()
+    
+    val playingUrl = audioPlayer.playingUrl
 
     fun startLocationUpdates() {
         viewModelScope.launch {
             locationRepository.getLocationUpdates().collect { loc ->
                 _location.value = loc
-                fetchNearbyTopics(loc)
+                // fetchNearbyTopics(loc) -> Triggered by camera movement now
             }
         }
     }
 
-    private fun fetchNearbyTopics(location: Location) {
+    fun onCameraIdle(minLat: Double, minLng: Double, maxLat: Double, maxLng: Double) {
+        fetchTopicsInBounds(minLat, minLng, maxLat, maxLng)
+    }
+
+    private fun fetchTopicsInBounds(minLat: Double, minLng: Double, maxLat: Double, maxLng: Double) {
         viewModelScope.launch {
-             // In a real app, we might handle loading states here
-             topicRepository.getNearbyTopics(location.latitude, location.longitude, 5000) // 5km radius
+             // 500ms debounce could be good here if not handled by UI state, but onCameraIdle is already discrete.
+             topicRepository.getTopicsInBounds(minLat, minLng, maxLat, maxLng)
                 .collect { fetchedTopics ->
                     if (fetchedTopics.isEmpty()) {
-                         _topics.value = getDummyTopics()
+                         // _topics.value = getDummyTopics() // Optional: keep dummy data if needed or merge
+                         // For now, let's append dummy topics if list is empty to avoid empty screen in demo
+                         val dummy = getDummyTopics().filter { 
+                            it.latitude in minLat..maxLat && it.longitude in minLng..maxLng
+                         }
+                         _topics.value = dummy
                     } else {
                          _topics.value = fetchedTopics
                     }
                 }
         }
+    }
+
+    private fun fetchNearbyTopics(location: Location) {
+        // Deprecated in favor of viewport fetching, but kept for initial location update if needed
+        // or we can just rely on camera movement.
+        // Let's leave it empty or remove usage in startLocationUpdates to avoid double fetch.
     }
     
     private fun getDummyTopics(): List<Topic> {
@@ -101,5 +119,24 @@ class HiveViewModel @Inject constructor(
     fun dismissTopic() {
         _selectedTopic.value = null
         _topicVoices.value = emptyList()
+        audioPlayer.stop()
+    }
+    
+    fun toggleAudio(voiceNote: VoiceNote) {
+        val url = voiceRepository.getAudioUrl(voiceNote.storagePath)
+        if (playingUrl.value == url) {
+            audioPlayer.stop()
+        } else {
+            audioPlayer.play(url)
+        }
+    }
+    
+    fun getAudioUrl(voiceNote: VoiceNote): String {
+        return voiceRepository.getAudioUrl(voiceNote.storagePath)
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        audioPlayer.stop()
     }
 }

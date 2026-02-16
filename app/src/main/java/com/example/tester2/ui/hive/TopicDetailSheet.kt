@@ -1,5 +1,6 @@
 package com.example.tester2.ui.hive
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,12 +23,16 @@ import com.example.tester2.ui.timeline.VoiceNoteItem
 fun TopicDetailSheet(
     topic: Topic,
     voiceNotes: List<VoiceNote>,
-    onContributeClick: (String) -> Unit
+    playingUrl: String?,
+    onContributeClick: (String) -> Unit,
+    onPlayClick: (VoiceNote) -> Unit,
+    getAudioUrl: (VoiceNote) -> String
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
+            .background(Color.White)
     ) {
         Text(
             text = topic.title,
@@ -55,7 +60,12 @@ fun TopicDetailSheet(
         } else {
             LazyColumn {
                 items(voiceNotes) { voiceNote ->
-                    VoiceNoteItem(note = voiceNote)
+                    val isPlaying = playingUrl == getAudioUrl(voiceNote)
+                    VoiceNoteItem(
+                        note = voiceNote,
+                        isPlaying = isPlaying,
+                        onPlayClick = { onPlayClick(voiceNote) }
+                    )
                 }
             }
         }

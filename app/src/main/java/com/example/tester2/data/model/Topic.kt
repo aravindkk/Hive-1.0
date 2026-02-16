@@ -9,5 +9,7 @@ data class Topic(
     val latitude: Double, // Extracted from PostGIS point
     val longitude: Double,
     val radius: Int,
-    val active: Boolean = true
+    val active: Boolean = true,
+    @kotlinx.serialization.SerialName("voice_count")
+    val voiceCount: Long = 0
 )

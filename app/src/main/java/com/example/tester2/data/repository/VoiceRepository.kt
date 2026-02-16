@@ -8,4 +8,5 @@ interface VoiceRepository {
     suspend fun transcribeAudio(storagePath: String): Result<Unit>
     fun getMyVoiceNotes(): Flow<List<VoiceNote>>
     fun getVoiceNotesForTopic(topicId: String): Flow<List<VoiceNote>>
+    fun getAudioUrl(storagePath: String): String
 }

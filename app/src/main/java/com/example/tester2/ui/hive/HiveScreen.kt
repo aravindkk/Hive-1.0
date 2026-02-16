@@ -32,6 +32,7 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.MapEffect
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -123,6 +124,18 @@ fun HiveScreen(
                         fillColor = HiveGreen.copy(alpha = 0.2f)
                     )
                 }
+
+                MapEffect(cameraPositionState.isMoving) { map ->
+                    if (!cameraPositionState.isMoving) {
+                        val bounds = map.projection.visibleRegion.latLngBounds
+                        viewModel.onCameraIdle(
+                            bounds.southwest.latitude,
+                            bounds.southwest.longitude,
+                            bounds.northeast.latitude,
+                            bounds.northeast.longitude
+                        )
+                    }
+                }
             }
             
             // Debug Button
@@ -139,13 +152,18 @@ fun HiveScreen(
                 onDismissRequest = { viewModel.dismissTopic() },
                 sheetState = sheetState
             ) {
+                val playingUrl by viewModel.playingUrl.collectAsState()
+                
                 TopicDetailSheet(
                     topic = selectedTopic!!,
                     voiceNotes = topicVoices,
+                    playingUrl = playingUrl,
                     onContributeClick = { topicId ->
                         onContributeClick(topicId)
                         viewModel.dismissTopic()
-                    }
+                    },
+                    onPlayClick = { note -> viewModel.toggleAudio(note) },
+                    getAudioUrl = { note -> viewModel.getAudioUrl(note) }
                 )
             }
         }

@@ -16,6 +16,7 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import io.github.jan.supabase.storage.storage
 import javax.inject.Inject
 
 class VoiceRepositoryImpl @Inject constructor(
@@ -105,11 +106,17 @@ class VoiceRepositoryImpl @Inject constructor(
     override suspend fun transcribeAudio(storagePath: String): Result<Unit> {
         return try {
             supabase.functions.invoke("transcribe-audio") {
-                setBody(mapOf("storage_path" to storagePath))
+                setBody(buildJsonObject {
+                    put("storage_path", storagePath)
+                })
             }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override fun getAudioUrl(storagePath: String): String {
+        return supabase.storage.from("audio-notes").publicUrl(storagePath)
     }
 }

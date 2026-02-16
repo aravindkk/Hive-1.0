@@ -37,6 +37,9 @@ import com.example.tester2.ui.theme.HiveTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
 import com.example.tester2.ui.timeline.TimelineScreen
+import com.example.tester2.ui.hive.LocalHiveScreen
+import com.example.tester2.ui.hive.TopicDeepDiveScreen
+import androidx.compose.material.icons.filled.BubbleChart
 import com.example.tester2.R
 import android.app.Activity
 import android.content.IntentSender
@@ -240,6 +243,24 @@ fun MainScreen(
                     onRecordingSaved = {
                         navController.popBackStack()
                     }
+                )
+            }
+            composable("local_hive") {
+                LocalHiveScreen(
+                    onTopicClick = { topic ->
+                        navController.navigate("topic_deep_dive/${topic.id}")
+                    }
+                )
+            }
+            composable(
+                route = "topic_deep_dive/{topicId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("topicId") { type = androidx.navigation.NavType.StringType }
+                )
+            ) { backStackEntry ->
+                TopicDeepDiveScreen(
+                    topicId = backStackEntry.arguments?.getString("topicId"),
+                    onBackClick = { navController.popBackStack() }
                 )
             }
         }

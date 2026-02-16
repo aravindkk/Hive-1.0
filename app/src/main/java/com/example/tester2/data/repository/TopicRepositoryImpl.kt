@@ -48,4 +48,29 @@ class TopicRepositoryImpl @Inject constructor(
              emit(emptyList()) // Fail gracefully
          }
     }
+
+    override fun getTopicsInBounds(minLat: Double, minLng: Double, maxLat: Double, maxLng: Double): Flow<List<Topic>> = flow {
+        try {
+            val topics = supabase.postgrest.rpc("get_topics_in_bounds", buildJsonObject {
+                put("min_lat", minLat)
+                put("min_long", minLng)
+                put("max_lat", maxLat)
+                put("max_long", maxLng)
+            }).decodeList<Topic>()
+            emit(topics)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(emptyList())
+        }
+    }
+
+    override fun getPopularTopics(): Flow<List<Topic>> = flow {
+        try {
+            val topics = supabase.postgrest.rpc("get_popular_topics").decodeList<Topic>()
+            emit(topics)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(emptyList())
+        }
+    }
 }

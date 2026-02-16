@@ -35,8 +35,36 @@ class AuthViewModel @Inject constructor(
     private val _username = MutableStateFlow<String?>(null)
     val username = _username.asStateFlow()
 
+    private val _generatedId = MutableStateFlow("User")
+    val generatedId = _generatedId.asStateFlow()
+    
+    // Toggle to show email/password fields for existing users
+    private val _showLoginFields = MutableStateFlow(false)
+    val showLoginFields = _showLoginFields.asStateFlow()
+
     init {
         checkLoginStatus()
+        generateNewId()
+    }
+    
+    private fun generateNewId() {
+        // Simple generator for demo/anonymous flow
+        val adjectives = listOf("Blue", "Red", "Green", "Electric", "Silent", "Happy", "Crimson", "Neon")
+        val animals = listOf("Fox", "Bear", "Wolf", "Tiger", "Eagle", "Panda", "Shark", "Hawk")
+        _generatedId.value = "${adjectives.random()}${animals.random()}${ (10..99).random() }"
+    }
+    
+    fun onRefreshId() {
+        generateNewId()
+    }
+    
+    fun toggleLoginView() {
+        _showLoginFields.value = !_showLoginFields.value
+        _errorMessage.value = null
+        // If switching to login view, we are not in "Sign Up" mode (conceptually), 
+        // but for the repository, "signIn" is distinct.
+        // We'll let the UI fields drive the standard authenticate().
+        _isSignUp.value = false 
     }
 
     private fun checkLoginStatus() {
@@ -66,14 +94,32 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = "Please fill in all fields"
             return
         }
+        performAuth(_email.value, _password.value)
+    }
+    
+    fun createAnonymousAccount() {
+        val id = _generatedId.value
+        val email = "${id.lowercase()}@hive.anonymous" // Fake email for auth
+        val password = "hive_password_${id}" // Auto-generated password
         
+        // This is conceptually a Sign Up
+        _isSignUp.value = true 
+        performAuth(email, password)
+    }
+    
+    private fun performAuth(email: String, pass: String) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            
+            // Note: If reusing standard signUp, it might try to insert into 'profiles' table if triggers are set up.
+            // Ensure the repository handles this or the backend works with this pattern.
+            // For now, we assume standard Supabase Auth works.
+            
             val result = if (_isSignUp.value) {
-                repository.signUp(_email.value, _password.value)
+                repository.signUp(email, pass)
             } else {
-                repository.signIn(_email.value, _password.value)
+                repository.signIn(email, pass)
             }
             
             result.onSuccess {

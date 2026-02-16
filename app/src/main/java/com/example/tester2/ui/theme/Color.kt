@@ -15,3 +15,5 @@ val HiveMediumGray = Color(0xFF6B7280)
 val HiveLightGray = Color(0xFFF3F4F6)
 val HiveWhite = Color(0xFFFFFFFF)
 val HiveBlack = Color(0xFF000000)
+val HiveCream = Color(0xFFFEFCE8) // Light yellow/cream
+val HiveNavy = Color(0xFF0F172A) // Dark navy/black

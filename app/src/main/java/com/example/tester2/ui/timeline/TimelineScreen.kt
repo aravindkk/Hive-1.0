@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -29,6 +30,7 @@ fun TimelineScreen(
     viewModel: TimelineViewModel = hiltViewModel()
 ) {
     val voiceNotes by viewModel.voiceNotes.collectAsState()
+    val playingUrl by viewModel.playingUrl.collectAsState()
 
     Box(
         modifier = Modifier
@@ -59,8 +61,14 @@ fun TimelineScreen(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                 }
+                
                 items(voiceNotes) { note ->
-                    VoiceNoteItem(note)
+                    val isPlaying = playingUrl == viewModel.getAudioUrl(note)
+                    VoiceNoteItem(
+                        note = note,
+                        isPlaying = isPlaying,
+                        onPlayClick = { viewModel.toggleAudio(note) }
+                    )
                 }
             }
         }
@@ -68,7 +76,11 @@ fun TimelineScreen(
 }
 
 @Composable
-fun VoiceNoteItem(note: VoiceNote) {
+fun VoiceNoteItem(
+    note: VoiceNote,
+    isPlaying: Boolean = false,
+    onPlayClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -82,15 +94,15 @@ fun VoiceNoteItem(note: VoiceNote) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = { /* TODO: Playback */ },
+                onClick = onPlayClick,
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(50))
                     .background(HiveGreen.copy(alpha = 0.1f))
             ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play",
+                    imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Stop" else "Play",
                     tint = HiveGreen
                 )
             }
