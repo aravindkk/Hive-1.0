@@ -11,7 +11,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val repository: AuthRepository
+    private val repository: AuthRepository,
+    private val preferenceManager: com.example.tester2.utils.PreferenceManager
 ) : ViewModel() {
 
     private val _email = MutableStateFlow("")
@@ -41,17 +42,38 @@ class AuthViewModel @Inject constructor(
     // Toggle to show email/password fields for existing users
     private val _showLoginFields = MutableStateFlow(false)
     val showLoginFields = _showLoginFields.asStateFlow()
+    
+    private val _canAutoLogin = MutableStateFlow(false)
+    val canAutoLogin = _canAutoLogin.asStateFlow()
 
     init {
         checkLoginStatus()
-        generateNewId()
+        loadStoredId()
+    }
+    
+    private fun loadStoredId() {
+        val storedId = preferenceManager.getLastGeneratedId()
+        if (storedId != null) {
+            _generatedId.value = storedId
+            // Check if last login was within 30 days
+            val lastLogin = preferenceManager.getLastLoginTimestamp()
+            val thirtyDaysMillis = 30L * 24 * 60 * 60 * 1000
+            if (System.currentTimeMillis() - lastLogin < thirtyDaysMillis) {
+                _canAutoLogin.value = true
+            }
+        } else {
+             generateNewId()
+        }
     }
     
     private fun generateNewId() {
         // Simple generator for demo/anonymous flow
         val adjectives = listOf("Blue", "Red", "Green", "Electric", "Silent", "Happy", "Crimson", "Neon")
         val animals = listOf("Fox", "Bear", "Wolf", "Tiger", "Eagle", "Panda", "Shark", "Hawk")
-        _generatedId.value = "${adjectives.random()}${animals.random()}${ (10..99).random() }"
+        val newId = "${adjectives.random()}${animals.random()}${ (10..99).random() }"
+        _generatedId.value = newId
+        preferenceManager.saveLastGeneratedId(newId)
+        _canAutoLogin.value = false // New ID means new user, no auto-login yet
     }
     
     fun onRefreshId() {
@@ -107,6 +129,17 @@ class AuthViewModel @Inject constructor(
         performAuth(email, password)
     }
     
+    fun attemptAutoLogin() {
+        if (_canAutoLogin.value) {
+            val id = _generatedId.value
+            val email = "${id.lowercase()}@hive.anonymous"
+            val password = "hive_password_${id}"
+            
+            _isSignUp.value = false // Sign In
+            performAuth(email, password)
+        }
+    }
+    
     private fun performAuth(email: String, pass: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -124,6 +157,7 @@ class AuthViewModel @Inject constructor(
             
             result.onSuccess {
                 _isLoggedIn.value = true
+                preferenceManager.saveLastLoginTimestamp(System.currentTimeMillis())
             }.onFailure {
                 _errorMessage.value = it.message ?: "Authentication failed"
             }

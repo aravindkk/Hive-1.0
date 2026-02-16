@@ -34,9 +34,9 @@ fun TopicDeepDiveScreen(
 ) {
     // In a real app, fetch topic details by ID. For now, mocking data based on ID.
     val topicTitle = when(topicId) {
-        "d1" -> "Traffic"
-        "d2" -> "Late Night Food"
-        "d3" -> "Lost Dog"
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -> "Traffic"
+        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" -> "Late Night Food"
+        "cccccccc-cccc-cccc-cccc-cccccccccccc" -> "Lost Dog"
         else -> "Topic Details"
     }
 

@@ -126,11 +126,18 @@ fun LandingScreen(viewModel: AuthViewModel) {
         Spacer(modifier = Modifier.height(48.dp))
 
         // User ID Card
+        val canAutoLogin by viewModel.canAutoLogin.collectAsState()
+        
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = canAutoLogin) { viewModel.attemptAutoLogin() },
             shape = RoundedCornerShape(50),
-            color = HiveWhite.copy(alpha = 0.6f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, HiveWhite)
+            color = if (canAutoLogin) HiveWhite.copy(alpha = 0.9f) else HiveWhite.copy(alpha = 0.6f),
+            border = androidx.compose.foundation.BorderStroke(
+                width = if (canAutoLogin) 2.dp else 1.dp, 
+                color = if (canAutoLogin) HiveGreen else HiveWhite
+            )
         ) {
             Row(
                 modifier = Modifier
@@ -141,13 +148,13 @@ fun LandingScreen(viewModel: AuthViewModel) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(HiveYellow.copy(alpha = 0.3f), CircleShape),
+                        .background(if (canAutoLogin) HiveGreen.copy(alpha = 0.2f) else HiveYellow.copy(alpha = 0.3f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "User Icon",
-                        tint = Color(0xFF854D0E)
+                        tint = if (canAutoLogin) HiveGreen else Color(0xFF854D0E)
                     )
                 }
 
@@ -155,9 +162,9 @@ fun LandingScreen(viewModel: AuthViewModel) {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "YOUR ID",
+                        text = if (canAutoLogin) "WELCOME BACK" else "YOUR ID",
                         style = MaterialTheme.typography.labelSmall,
-                        color = HiveMediumGray
+                        color = if (canAutoLogin) HiveGreen else HiveMediumGray
                     )
                     Text(
                         text = generatedId,
@@ -166,14 +173,23 @@ fun LandingScreen(viewModel: AuthViewModel) {
                         ),
                         color = HiveDarkGray
                     )
+                    if (canAutoLogin) {
+                         Text(
+                            text = "Tap to Login",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = HiveGreen
+                        )
+                    }
                 }
 
-                IconButton(onClick = viewModel::onRefreshId) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh ID",
-                        tint = HiveMediumGray
-                    )
+                if (!canAutoLogin) {
+                    IconButton(onClick = viewModel::onRefreshId) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh ID",
+                            tint = HiveMediumGray
+                        )
+                    }
                 }
             }
         }

@@ -1,11 +1,14 @@
 -- RPC Function to find topics within a bounding box (viewport)
 -- Usage: select * from get_topics_in_bounds(min_lat, min_long, max_lat, max_long)
-create or replace function get_topics_in_bounds(min_lat float, min_long float, max_lat float, max_long float)
+drop function if exists get_topics_in_bounds(float, float, float, float);
+drop function if exists get_topics_in_bounds(float8, float8, float8, float8);
+
+create or replace function get_topics_in_bounds(min_lat float8, min_long float8, max_lat float8, max_long float8)
 returns table (
   id uuid,
   title text,
-  latitude float,
-  longitude float,
+  latitude float8,
+  longitude float8,
   radius int,
   active boolean
 )

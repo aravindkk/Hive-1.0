@@ -91,12 +91,12 @@ class HiveViewModel @Inject constructor(
         val koraLng = 77.6247
         
         return listOf(
-            Topic("demo_1", "HSR Startup Founders", hsrLat, hsrLng, 2000),
-            Topic("demo_2", "HSR Foodies", hsrLat + 0.001, hsrLng + 0.001, 2000),
-            Topic("demo_3", "Classic Old Bangalore", jayanagarLat, jayanagarLng, 3000),
-            Topic("demo_4", "Jayanagar Shopping", jayanagarLat + 0.002, jayanagarLng, 1000),
-            Topic("demo_5", "Koramangala Nightlife", koraLat, koraLng, 2000),
-            Topic("demo_6", "Sony Signal Traffic", koraLat - 0.001, koraLng, 1000)
+            Topic("11111111-1111-1111-1111-111111111111", "HSR Startup Founders", hsrLat, hsrLng, 2000),
+            Topic("22222222-2222-2222-2222-222222222222", "HSR Foodies", hsrLat + 0.001, hsrLng + 0.001, 2000),
+            Topic("33333333-3333-3333-3333-333333333333", "Classic Old Bangalore", jayanagarLat, jayanagarLng, 3000),
+            Topic("44444444-4444-4444-4444-444444444444", "Jayanagar Shopping", jayanagarLat + 0.002, jayanagarLng, 1000),
+            Topic("55555555-5555-5555-5555-555555555555", "Koramangala Nightlife", koraLat, koraLng, 2000),
+            Topic("66666666-6666-6666-6666-666666666666", "Sony Signal Traffic", koraLat - 0.001, koraLng, 1000)
         )
     }
 

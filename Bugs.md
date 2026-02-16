@@ -9,11 +9,11 @@
 9. [Done] Clicking on user name is not aking user to the Feed screen... (Fixed TopBar Click Handler)
 10. [Done] The mic recording page no navigation buttons... (Integrated Recorder into Main Navigation)
 11. [Done] [Open-1] The voice clips are stuck at processing... (Fixed Realtime Connection and Storage Policies)
-12. Change the login screen to the attached screenshot.
-13. The app should have a splash screen. Use the design attached as the splash screen.
-14. Add the icon for this Android app(attached icon)
-15. New voice recordings are not shown on the screen. Not sure if they are getting processed. No transcript is generated or shown to user.
-16. Location permission is asked but it is not turning on the location on the phone. So while the location permission is requested from the user, the location is not turned on.
+12. [Done] Change the login screen to the attached screenshot.
+13. [Done] The app should have a splash screen. Use the design attached as the splash screen.
+14. [Done] Add the icon for this Android app(attached icon)
+15. [Done] New voice recordings are not shown on the screen. Not sure if they are getting processed. No transcript is generated or shown to user.
+16. [Done] Location permission is asked but it is not turning on the location on the phone. So while the location permission is requested from the user, the location is not turned on.
 
 17.
 Bug description: POST request to endpoint /functions/v1/transcribe-audio failed with exception Fail to prepare request body for sending: class java.util.Collections$SingletonMap
@@ -47,5 +47,26 @@ Review status: Resolved
 Bug description: Create a third tab called “Local Hive” and just show all topics as circles of varying sizes depending on how popular that topic is.
 Reported by: User
 Fix: Implemented "Local Hive" tab with bubble visualization in `LocalHiveScreen.kt`, using `voiceCount` from `get_popular_topics` RPC. Clicking a bubble opens `TopicDeepDiveScreen.kt`, which features a mocked AI audio summary with transcript and playback controls. Updated `HiveApp.kt` navigation.
+Fix status: Done
+Review status: Resolved
+
+22.
+Bug description: `PostgrestRestException: invalid input syntax for type uuid: "demo_3"`. App crashes when viewing or contributing to dummy topics.
+Reported by: User
+Fix: Updated dummy topic IDs in `HiveViewModel` and `LocalHiveViewModel` to use valid UUID strings instead of arbitrary strings like "demo_1". Updated `TopicDeepDiveScreen` to map these new IDs.
+Fix status: Done
+Review status: Resolved
+
+23.
+Bug description: `PostgrestRestException: Could not find the function public.get_topics_in_bounds(max_lat, max_long, min_lat, min_long)`. The RPC function found in schema cache likely doesn't match the Double (float8) parameters sent by the client.
+Reported by: User
+Fix: Recreated `supabase/migrations/20240216_get_topics_in_bounds.sql` with explicit `float8` types for all parameters to ensure strict matching with Kotlin's `Double` (which maps to 64-bit float).
+Fix status: SQL Updated (Requires Execution)
+Review status: Resolved
+
+24.
+Bug description: Login screen shows static "SilentHawk15" username instead of the generated one. User also requested auto-login if authenticated within the last 30 days by clicking the ID card.
+Reported by: User
+Fix: Created `PreferenceManager` to store `last_generated_id` and `last_login_timestamp`. Updated `AuthViewModel` to load the stored ID on launch and enable `autoLogin` if within the 30-day window. Modified `AuthScreen` to make the ID card clickable, triggering `attemptAutoLogin` and showing "WELCOME BACK" for returning users.
 Fix status: Done
 Review status: Resolved

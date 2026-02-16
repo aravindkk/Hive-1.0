@@ -35,11 +35,11 @@ class LocalHiveViewModel @Inject constructor(
     
     private fun getDummyPopularTopics(): List<Topic> {
         return listOf(
-            Topic("d1", "Traffic", 0.0, 0.0, 500, true, 83),
-            Topic("d2", "Late Night Food", 0.0, 0.0, 500, true, 42),
-            Topic("d3", "Lost Dog", 0.0, 0.0, 500, true, 3),
-            Topic("d4", "Construction Noise", 0.0, 0.0, 500, true, 15),
-            Topic("d5", "Weather", 0.0, 0.0, 500, true, 8)
+            Topic("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Traffic", 0.0, 0.0, 500, true, 83),
+            Topic("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Late Night Food", 0.0, 0.0, 500, true, 42),
+            Topic("cccccccc-cccc-cccc-cccc-cccccccccccc", "Lost Dog", 0.0, 0.0, 500, true, 3),
+            Topic("dddddddd-dddd-dddd-dddd-dddddddddddd", "Construction Noise", 0.0, 0.0, 500, true, 15),
+            Topic("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", "Weather", 0.0, 0.0, 500, true, 8)
         )
     }
 }
