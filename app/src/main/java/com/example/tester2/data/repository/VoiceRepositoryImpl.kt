@@ -17,6 +17,7 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.request.headers
 import javax.inject.Inject
 
 class VoiceRepositoryImpl @Inject constructor(
@@ -106,6 +107,10 @@ class VoiceRepositoryImpl @Inject constructor(
     override suspend fun transcribeAudio(storagePath: String): Result<Unit> {
         return try {
             supabase.functions.invoke("transcribe-audio") {
+                // Fix for: Fail to prepare request body for sending. Content-Type: null
+                headers {
+                    append(io.ktor.http.HttpHeaders.ContentType, io.ktor.http.ContentType.Application.Json.toString())
+                }
                 setBody(buildJsonObject {
                     put("storage_path", storagePath)
                 })
@@ -117,6 +122,8 @@ class VoiceRepositoryImpl @Inject constructor(
     }
 
     override fun getAudioUrl(storagePath: String): String {
-        return supabase.storage.from("audio-notes").publicUrl(storagePath)
+        // storage extension requires import, using manual construction to be safe
+        // Format: https://project.supabase.co/storage/v1/object/public/bucket/path
+        return "${supabase.supabaseUrl}/storage/v1/object/public/audio-notes/$storagePath" 
     }
 }
