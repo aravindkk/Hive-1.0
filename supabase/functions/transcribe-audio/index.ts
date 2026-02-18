@@ -66,7 +66,7 @@ serve(async (req) => {
         if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
         const prompt = "Transcribe the following audio file. Return only the transcript text. Do not include timestamps or speaker labels unless clear. If audio is unclear, say [Unclear Audio].";
 
