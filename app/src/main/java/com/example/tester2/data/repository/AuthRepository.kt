@@ -11,7 +11,7 @@ import javax.inject.Inject
 import kotlin.random.Random
 
 interface AuthRepository {
-    suspend fun signUp(email: String, password: String): Result<Unit>
+    suspend fun signUp(email: String, password: String, username: String? = null): Result<Unit>
     suspend fun signIn(email: String, password: String): Result<Unit>
     suspend fun signOut()
     suspend fun isUserLoggedIn(): Boolean
@@ -23,14 +23,14 @@ class AuthRepositoryImpl @Inject constructor(
     private val supabase: SupabaseClient
 ) : AuthRepository {
 
-    override suspend fun signUp(email: String, password: String): Result<Unit> {
+    override suspend fun signUp(email: String, password: String, username: String?): Result<Unit> {
         return try {
-            val username = generateUniqueUsername()
+            val finalUsername = username ?: generateUniqueUsername()
             supabase.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
                 data = JsonObject(
-                    mapOf("username" to JsonPrimitive(username))
+                    mapOf("username" to JsonPrimitive(finalUsername))
                 )
             }
             // Note: A database trigger is expected to handle the creation of the public.users row

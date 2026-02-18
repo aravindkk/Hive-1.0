@@ -143,7 +143,7 @@ fun HiveScreen(
                 onClick = { viewModel.createDummyTopic() },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
             ) {
-                Text("Create Test Topic Here")
+                Text("Create a new Topic here")
             }
         }
         

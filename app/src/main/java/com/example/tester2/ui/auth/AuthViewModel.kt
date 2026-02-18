@@ -126,7 +126,7 @@ class AuthViewModel @Inject constructor(
         
         // This is conceptually a Sign Up
         _isSignUp.value = true 
-        performAuth(email, password)
+        performAuth(email, password, username = id)
     }
     
     fun attemptAutoLogin() {
@@ -140,7 +140,7 @@ class AuthViewModel @Inject constructor(
         }
     }
     
-    private fun performAuth(email: String, pass: String) {
+    private fun performAuth(email: String, pass: String, username: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
@@ -150,7 +150,7 @@ class AuthViewModel @Inject constructor(
             // For now, we assume standard Supabase Auth works.
             
             val result = if (_isSignUp.value) {
-                repository.signUp(email, pass)
+                repository.signUp(email, pass, username)
             } else {
                 repository.signIn(email, pass)
             }
@@ -158,11 +158,21 @@ class AuthViewModel @Inject constructor(
             result.onSuccess {
                 _isLoggedIn.value = true
                 preferenceManager.saveLastLoginTimestamp(System.currentTimeMillis())
-                // Verify if we should save the ID. For anonymous flow, generatedId is the source.
-                // For manual email/pass login, we might not want to overwrite it with "User" or null unless we map it.
-                // Assuming this flow is primarily for the anonymous ID card system:
-                if (email.endsWith("@hive.anonymous")) {
-                    preferenceManager.saveLastGeneratedId(_generatedId.value)
+                
+                // CRITICAL FIX: Sync local ID with actual remote username
+                // This handles cases where local prefs are out of sync with the account (e.g. ElectricStar vs BlueFox63)
+                val currentUsername = repository.getCurrentUsername()
+                if (currentUsername != null) {
+                    _username.value = currentUsername
+                    _generatedId.value = currentUsername
+                    if (email.endsWith("@hive.anonymous")) {
+                        preferenceManager.saveLastGeneratedId(currentUsername)
+                    }
+                } else {
+                    // Fallback for new signups if getCurrentUsername isn't immediately available (though it should be)
+                     if (username != null && email.endsWith("@hive.anonymous")) {
+                        preferenceManager.saveLastGeneratedId(username)
+                    }
                 }
             }.onFailure {
                 _errorMessage.value = it.message ?: "Authentication failed"

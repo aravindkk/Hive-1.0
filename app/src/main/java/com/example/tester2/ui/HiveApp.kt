@@ -186,11 +186,11 @@ fun MainScreen(
                     }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Map, contentDescription = "Hive") },
-                    label = { Text("Hive") },
-                    selected = currentDestination?.route == "hive",
+                    icon = { Icon(Icons.Default.BubbleChart, contentDescription = "Local Hive") },
+                    label = { Text("Local Hive") },
+                    selected = currentDestination?.route == "local_hive",
                     onClick = { 
-                        navController.navigate("hive") { 
+                        navController.navigate("local_hive") { 
                             popUpTo(navController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
@@ -198,11 +198,11 @@ fun MainScreen(
                     }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.BubbleChart, contentDescription = "Local Hive") },
-                    label = { Text("Local Hive") },
-                    selected = currentDestination?.route == "local_hive",
+                    icon = { Icon(Icons.Default.Map, contentDescription = "Hive") },
+                    label = { Text("Hive") },
+                    selected = currentDestination?.route == "hive",
                     onClick = { 
-                        navController.navigate("local_hive") { 
+                        navController.navigate("hive") { 
                             popUpTo(navController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
