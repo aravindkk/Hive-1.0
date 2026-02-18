@@ -112,3 +112,31 @@ Reported by: User
 Fix: In `SupabaseModule.kt`, configured the `device-less` Ktor client engine to install `ContentNegotiation` with `kotlinx-serialization-json`. Added `ktor-client-content-negotiation` and `ktor-serialization-kotlinx-json` dependencies in `libs.versions.toml` and `build.gradle.kts` to support automatic JSON serialization of `JsonObject` bodies.
 Fix status: Done
 Review status: Resolved
+
+31.
+Bug description: Voice summaries in "Local Hive" tab have no audio when play button is clicked.
+Reported by: User
+Fix: In `TopicDeepDiveScreen.kt`, the play button was only toggling a visual state without triggering actual audio playback. Updated `LocalHiveViewModel` to inject `AudioPlayer` and added `toggleAudio(url)` method. Connect the screen's play button to this method.
+Fix status: Done
+Review status: Resolved
+
+32.
+Bug description: "Tap to Speak" button in "Local Hive" tab (Topic Deep Dive) does not work.
+Reported by: User
+Fix: In `TopicDeepDiveScreen.kt`, added `onSpeakClick` callback to the composable and invoked it from the button's `onClick`. Updated `HiveApp.kt` to pass a navigation lambda that navigates to the `record` route with the `topicId`.
+Fix status: Done
+Review status: Resolved
+
+33.
+Bug description: `PostgrestRestException: Could not find the function public.get_popular_topics`. The user reported that the function was not found even after running the script. This likely indicates permission issues (PostgREST treats missing permissions as 404) or a signature mismatch.
+Reported by: User
+Fix: Updated `supabase/migrations/20240216_get_popular_topics.sql` to explicitly `DROP` the function before creating it (to clear any old signatures) and added `GRANT EXECUTE` permission for `anon` and `authenticated` roles. This ensures the function is accessible to the app.
+Fix status: Verified (RPC Accessible)
+Review status: Resolved
+
+34.
+Bug description: `404 Not Found` when calling `transcribe-audio` Edge Function. The function exists in the codebase but is not deployed to the remote Supabase project.
+Reported by: User
+Fix: The user must deploy the function using the Supabase CLI and set the required `GEMINI_API_KEY` secret.
+Fix status: Verified (Function Deployed)
+Review status: Resolved
