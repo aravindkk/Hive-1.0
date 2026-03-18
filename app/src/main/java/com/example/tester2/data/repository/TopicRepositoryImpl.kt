@@ -3,9 +3,11 @@ package com.example.tester2.data.repository
 import com.example.tester2.data.model.Topic
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import javax.inject.Inject
@@ -71,6 +73,64 @@ class TopicRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             emit(emptyList())
+        }
+    }
+
+    override fun getNewTopics(): Flow<List<Topic>> = flow {
+        try {
+            val topics = supabase.from("topics")
+                .select()
+                .decodeList<Topic>()
+                .sortedByDescending { it.createdAt }
+            emit(topics)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(emptyList())
+        }
+    }
+
+    override fun getMyTopics(userId: String): Flow<List<Topic>> = flow {
+        try {
+            // Get topic IDs from voices this user contributed to
+            val voices = supabase.from("voices")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                        neq("topic_id", "null")
+                    }
+                }
+                .decodeList<JsonObject>()
+
+            val topicIds = voices
+                .mapNotNull { it["topic_id"]?.toString()?.trim('"') }
+                .distinct()
+
+            if (topicIds.isEmpty()) {
+                emit(emptyList())
+                return@flow
+            }
+
+            val topics = supabase.from("topics")
+                .select()
+                .decodeList<Topic>()
+                .filter { it.id in topicIds }
+                .sortedByDescending { it.voiceCount }
+
+            emit(topics)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(emptyList())
+        }
+    }
+
+    override suspend fun getTopicById(topicId: String): Topic? {
+        return try {
+            supabase.postgrest.rpc("get_topic_by_id", buildJsonObject {
+                put("topic_id", topicId)
+            }).decodeList<Topic>().firstOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }

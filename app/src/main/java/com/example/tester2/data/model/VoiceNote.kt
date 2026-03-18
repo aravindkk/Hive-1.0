@@ -4,6 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class TopicRef(val title: String? = null)
+
+@Serializable
 data class VoiceNote(
     val id: String,
     @SerialName("user_id")
@@ -14,5 +17,9 @@ data class VoiceNote(
     @SerialName("topic_id")
     val topicId: String? = null,
     @SerialName("created_at")
-    val createdAt: String
-)
+    val createdAt: String,
+    val classification: String? = null,
+    val topics: TopicRef? = null
+) {
+    val topicTitle: String? get() = topics?.title
+}

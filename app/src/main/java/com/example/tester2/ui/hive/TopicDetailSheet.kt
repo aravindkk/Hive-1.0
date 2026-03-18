@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.example.tester2.data.model.Topic
 import com.example.tester2.data.model.VoiceNote
 import com.example.tester2.ui.theme.HiveGreen
-import com.example.tester2.ui.timeline.VoiceNoteItem
+import com.example.tester2.ui.timeline.VoiceNoteCard
 
 @Composable
 fun TopicDetailSheet(
@@ -61,10 +61,11 @@ fun TopicDetailSheet(
             LazyColumn {
                 items(voiceNotes) { voiceNote ->
                     val isPlaying = playingUrl == getAudioUrl(voiceNote)
-                    VoiceNoteItem(
+                    VoiceNoteCard(
                         note = voiceNote,
                         isPlaying = isPlaying,
-                        onPlayClick = { onPlayClick(voiceNote) }
+                        onPlayClick = { onPlayClick(voiceNote) },
+                        onTopicClick = {}
                     )
                 }
             }

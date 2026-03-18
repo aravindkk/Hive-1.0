@@ -1,66 +1,78 @@
 package com.example.tester2.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Row
-import androidx.compose.runtime.collectAsState
-import com.example.tester2.ui.auth.AuthScreen
-import com.example.tester2.ui.auth.AuthViewModel
-import com.example.tester2.ui.hive.HiveScreen
-import com.example.tester2.ui.recorder.RecorderScreen
-import com.example.tester2.ui.theme.HiveGreen
-import com.example.tester2.ui.theme.HiveTheme
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.fillMaxSize
-import com.example.tester2.ui.timeline.TimelineScreen
-import com.example.tester2.ui.hive.LocalHiveScreen
-import com.example.tester2.ui.hive.TopicDeepDiveScreen
-import androidx.compose.material.icons.filled.BubbleChart
-import com.example.tester2.R
-import android.app.Activity
 import android.content.IntentSender
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BubbleChart
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.tester2.R
+import com.example.tester2.ui.auth.AuthScreen
+import com.example.tester2.ui.auth.AuthViewModel
+import com.example.tester2.ui.hive.LocalHiveScreen
+import com.example.tester2.ui.hive.TopicDeepDiveScreen
+import com.example.tester2.ui.recorder.RecorderScreen
+import com.example.tester2.ui.theme.HiveGreen
+import com.example.tester2.ui.theme.HiveTheme
+import com.example.tester2.ui.timeline.TimelineScreen
 import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.Priority
-import androidx.compose.ui.platform.LocalContext
+
+private val NavActiveColor = Color(0xFF166534)
+private val NavInactiveColor = Color(0xFF9E9E9E)
+private val ScreenBg = Color(0xFFF9F9F4)
 
 @Composable
 fun HiveApp() {
     HiveTheme {
+        val authViewModel: AuthViewModel = hiltViewModel()
+        val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
+        val isAuthCheckComplete by authViewModel.isAuthCheckComplete.collectAsState()
+
+        // Hold on splash image while auth check is in progress (typically <200ms)
+        if (!isAuthCheckComplete) {
+            SplashContent()
+            return@HiveTheme
+        }
+
         val navController = rememberNavController()
-        
-        NavHost(navController = navController, startDestination = "splash") {
+        val startDest = when {
+            !authViewModel.hasSeenSplash -> "splash"
+            isLoggedIn -> "home"
+            else -> "auth"
+        }
+
+        NavHost(navController = navController, startDestination = startDest) {
             composable("splash") {
-                SplashScreen(onTimeout = {
+                SplashScreen(onComplete = {
+                    authViewModel.markSplashSeen()
                     navController.navigate("auth") {
                         popUpTo("splash") { inclusive = true }
                     }
@@ -75,7 +87,6 @@ fun HiveApp() {
                     }
                 )
             }
-            
             composable("home") {
                 MainScreen()
             }
@@ -84,33 +95,36 @@ fun HiveApp() {
 }
 
 @Composable
-fun SplashScreen(onTimeout: () -> Unit) {
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(2000)
-        onTimeout()
-    }
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = androidx.compose.ui.Alignment.Center
-    ) {
+private fun SplashContent() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Image(
-            painter = androidx.compose.ui.res.painterResource(id = com.example.tester2.R.drawable.splash_background),
-            contentDescription = "Splash Screen",
+            painter = painterResource(id = R.drawable.splash_background),
+            contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            contentScale = ContentScale.Crop
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
 @Composable
-fun MainScreen(
-    authViewModel: com.example.tester2.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-) {
+fun SplashScreen(onComplete: () -> Unit) {
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2000)
+        onComplete()
+    }
+    SplashContent()
+}
+
+@OptIn(com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
+@Composable
+fun MainScreen() {
     val navController = rememberNavController()
-    val username by authViewModel.username.collectAsState()
-    
-    // Request permissions on launch
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Hide nav chrome on full-screen destinations
+    val showNav = currentRoute in listOf("feed", "local_hive")
+
     val multiplePermissionsState = com.google.accompanist.permissions.rememberMultiplePermissionsState(
         listOf(
             android.Manifest.permission.RECORD_AUDIO,
@@ -118,126 +132,44 @@ fun MainScreen(
             android.Manifest.permission.ACCESS_COARSE_LOCATION
         )
     )
-    
+
     val context = LocalContext.current
     val locationSettingsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { /* No-op: Check again if needed */ }
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) {}
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         multiplePermissionsState.launchMultiplePermissionRequest()
-        
-        // Check if GPS is enabled
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
-        val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
         val client = LocationServices.getSettingsClient(context)
-        
-        client.checkLocationSettings(builder.build()).addOnFailureListener { exception ->
+        client.checkLocationSettings(
+            LocationSettingsRequest.Builder().addLocationRequest(locationRequest).build()
+        ).addOnFailureListener { exception ->
             if (exception is ResolvableApiException) {
                 try {
-                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
-                    locationSettingsLauncher.launch(intentSenderRequest)
-                } catch (sendEx: IntentSender.SendIntentException) {
-                    // Ignore
-                }
+                    locationSettingsLauncher.launch(
+                        IntentSenderRequest.Builder(exception.resolution).build()
+                    )
+                } catch (_: IntentSender.SendIntentException) {}
             }
         }
     }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Row(
-                        modifier = Modifier.clickable {
-                            navController.navigate("feed") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
-                        Text(text = username?.let { "$it" } ?: "Hive User")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Settings */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-                
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.List, contentDescription = "Feed") },
-                    label = { Text("Feed") },
-                    selected = currentDestination?.route == "feed",
-                    onClick = { 
-                        navController.navigate("feed") { 
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        } 
-                    }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.BubbleChart, contentDescription = "Local Hive") },
-                    label = { Text("Local Hive") },
-                    selected = currentDestination?.route == "local_hive",
-                    onClick = { 
-                        navController.navigate("local_hive") { 
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        } 
-                    }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Map, contentDescription = "Hive") },
-                    label = { Text("Hive") },
-                    selected = currentDestination?.route == "hive",
-                    onClick = { 
-                        navController.navigate("hive") { 
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        } 
-                    }
-                )
-            }
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate("record") },
-                containerColor = HiveGreen
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Record",
-                    tint = Color.White
-                )
-            }
-        }
-    ) { innerPadding ->
+
+    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarTotalHeight = 64.dp + bottomInset
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Main content — padded at bottom to clear nav bar + system nav
         NavHost(
-            navController = navController, 
-            startDestination = "feed", 
-            modifier = Modifier.padding(innerPadding)
+            navController = navController,
+            startDestination = "feed",
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (showNav) Modifier.padding(bottom = navBarTotalHeight) else Modifier)
         ) {
             composable("feed") {
-                TimelineScreen()
-            }
-            composable("hive") {
-                HiveScreen(
-                    onContributeClick = { topicId -> 
-                         val route = "record?topicId=$topicId"
-                         navController.navigate(route)
-                    }
+                TimelineScreen(
+                    onTopicClick = { topicId -> navController.navigate("topic_deep_dive/$topicId") }
                 )
             }
             composable(
@@ -252,33 +184,138 @@ fun MainScreen(
             ) { backStackEntry ->
                 RecorderScreen(
                     topicId = backStackEntry.arguments?.getString("topicId"),
-                    onRecordingSaved = {
-                        navController.popBackStack()
+                    onRecordingSaved = { navController.popBackStack() },
+                    onNavigateToTopic = { topicId ->
+                        navController.navigate("topic_deep_dive/$topicId") {
+                            popUpTo("record?topicId={topicId}") { inclusive = true }
+                        }
                     }
                 )
             }
             composable("local_hive") {
                 LocalHiveScreen(
-                    onTopicClick = { topic ->
-                        navController.navigate("topic_deep_dive/${topic.id}")
-                    }
+                    onTopicClick = { topic -> navController.navigate("topic_deep_dive/${topic.id}") }
                 )
             }
             composable(
                 route = "topic_deep_dive/{topicId}",
                 arguments = listOf(
-                    androidx.navigation.navArgument("topicId") { type = androidx.navigation.NavType.StringType }
+                    androidx.navigation.navArgument("topicId") {
+                        type = androidx.navigation.NavType.StringType
+                    }
                 )
             ) { backStackEntry ->
+                val topicId = backStackEntry.arguments?.getString("topicId") ?: return@composable
                 TopicDeepDiveScreen(
-                    topicId = backStackEntry.arguments?.getString("topicId"),
+                    topicId = topicId,
                     onBackClick = { navController.popBackStack() },
-                    onSpeakClick = { topicId ->
-                        val route = if (topicId != null) "record?topicId=$topicId" else "record"
-                        navController.navigate(route)
-                    }
+                    onSpeakClick = { id -> navController.navigate("record?topicId=$id") }
                 )
             }
         }
+
+        // Custom bottom nav — only on main tabs
+        if (showNav) {
+            // Column: nav items row + spacer behind system nav bar
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(ScreenBg)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .padding(horizontal = 48.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NavItem(
+                        icon = Icons.Default.Mic,
+                        label = "My Thoughts",
+                        selected = currentRoute == "feed",
+                        onClick = {
+                            navController.navigate("feed") {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                    NavItem(
+                        icon = Icons.Default.BubbleChart,
+                        label = "Topics",
+                        selected = currentRoute == "local_hive",
+                        onClick = {
+                            navController.navigate("local_hive") {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+                // Fills the space behind the system navigation bar
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                )
+            }
+
+            // FAB — only on My Thoughts tab
+            if (currentRoute == "feed") Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = navBarTotalHeight + 8.dp)
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(HiveGreen)
+                    .clickable { navController.navigate("record") },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Record",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val color = if (selected) NavActiveColor else NavInactiveColor
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = Modifier
+            .clickable(
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                onClick = onClick
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = color,
+            modifier = Modifier.size(22.dp)
+        )
+        Text(
+            text = label,
+            color = color,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+        )
     }
 }

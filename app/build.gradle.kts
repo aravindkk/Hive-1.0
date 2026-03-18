@@ -105,6 +105,9 @@ dependencies {
     // Permissions
     implementation(libs.accompanist.permissions)
 
+    // Media3 ExoPlayer (audio playback)
+    implementation(libs.media3.exoplayer)
+
     // Location
     implementation(libs.play.services.location)
     

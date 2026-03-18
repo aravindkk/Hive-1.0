@@ -20,6 +20,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 import io.github.jan.supabase.annotations.SupabaseInternal
+import kotlin.time.Duration.Companion.seconds
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -33,6 +34,7 @@ object SupabaseModule {
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_ANON_KEY
         ) {
+            requestTimeout = 120.seconds // Gemini transcription + classification can take 30–60s; default 10s is too short
             httpEngine = CIO.create()
             httpConfig {
                 install(ContentNegotiation) {

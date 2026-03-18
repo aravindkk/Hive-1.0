@@ -1,8 +1,6 @@
 package com.example.tester2.ui.auth
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,9 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -20,17 +16,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -84,114 +76,123 @@ fun LandingScreen(viewModel: AuthViewModel) {
     ) {
         Spacer(modifier = Modifier.weight(1f))
 
-        // Logo
+        // Logo — green circle with honeycomb icon
         Box(
             modifier = Modifier
-                .size(100.dp)
-                .background(HiveYellow.copy(alpha = 0.8f), CircleShape)
-                .padding(24.dp),
+                .size(80.dp)
+                .background(HiveGreen.copy(alpha = 0.25f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.GraphicEq,
                 contentDescription = "Hive Logo",
-                tint = Color(0xFF854D0E), // Brown/Dark Yellow
-                modifier = Modifier.size(48.dp)
+                tint = HiveGreen,
+                modifier = Modifier.size(40.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Hive",
             style = MaterialTheme.typography.displayLarge.copy(
-                fontFamily = FontFamily.SansSerif,
-                fontWeight = FontWeight.Light,
-                fontSize = 56.sp
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Normal,
+                fontSize = 52.sp
             ),
             color = HiveDarkGray
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "CONNECT. THINK. FEEL.",
-            style = MaterialTheme.typography.labelSmall.copy(
-                letterSpacing = 4.sp,
-                fontWeight = FontWeight.Bold
-            ),
+            text = "Connect. Think. Feel.",
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
             color = HiveMediumGray
         )
 
-        // User ID Card
+        Spacer(modifier = Modifier.height(40.dp))
+
+        // Digital identity card
         val canAutoLogin by viewModel.canAutoLogin.collectAsState()
-        
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = HiveWhite.copy(alpha = 0.9f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, HiveLightGray)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "YOUR DIGITAL IDENTITY",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        letterSpacing = 1.5.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = HiveMediumGray
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "@$generatedId",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        ),
+                        color = HiveDarkGray,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = viewModel::onRefreshId,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Regenerate",
+                            tint = HiveMediumGray,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Hive protects your privacy. You'll be as an anonymous entity.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = HiveMediumGray
+                )
+            }
+        }
+
         if (canAutoLogin) {
+            Spacer(modifier = Modifier.height(12.dp))
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { viewModel.attemptAutoLogin() },
                 shape = RoundedCornerShape(50),
-                color = HiveWhite.copy(alpha = 0.9f),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 2.dp, 
-                    color = HiveGreen
-                )
+                color = HiveGreen.copy(alpha = 0.1f),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, HiveGreen)
             ) {
                 Row(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .fillMaxWidth(),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(HiveGreen.copy(alpha = 0.2f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "User Icon",
-                            tint = HiveGreen
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "WELCOME BACK",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = HiveGreen
-                        )
-                        Text(
-                            text = generatedId,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = HiveDarkGray
-                        )
-                        Text(
-                            text = "Tap to Login",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = HiveGreen
-                        )
-                    }
+                    Text(
+                        text = "Welcome back, @$generatedId",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = HiveGreen,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "Tap to log in →",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = HiveGreen
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Text(
-            text = "ANONYMOUS IDENTITIES",
-            style = MaterialTheme.typography.labelSmall,
-            color = HiveMediumGray.copy(alpha = 0.6f)
-        )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // Create Account Button
         Button(
@@ -201,31 +202,22 @@ fun LandingScreen(viewModel: AuthViewModel) {
                 .height(56.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = HiveNavy,
-                contentColor = HiveWhite
+                containerColor = HiveGreen,
+                contentColor = HiveDarkGray
             ),
             enabled = !isLoading
         ) {
             if (isLoading) {
-                CircularProgressIndicator(color = HiveWhite, modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(color = HiveDarkGray, modifier = Modifier.size(24.dp))
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Create Account",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = null,
-                        tint = HiveYellow,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                Text(
+                    text = "Create Account",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Sign In Button
         OutlinedButton(
@@ -236,8 +228,8 @@ fun LandingScreen(viewModel: AuthViewModel) {
             shape = RoundedCornerShape(28.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, HiveLightGray),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = HiveNavy,
-                containerColor = HiveWhite
+                contentColor = HiveDarkGray,
+                containerColor = HiveWhite.copy(alpha = 0.7f)
             )
         ) {
             Text(

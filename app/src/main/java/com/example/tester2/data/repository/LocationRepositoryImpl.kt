@@ -13,7 +13,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
+import kotlin.coroutines.resume
 
 class LocationRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -41,5 +43,13 @@ class LocationRepositoryImpl @Inject constructor(
         awaitClose {
             client.removeLocationUpdates(callback)
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    override suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { cont ->
+        client.lastLocation
+            .addOnSuccessListener { cont.resume(it) }
+            .addOnFailureListener { cont.resume(null) }
+            .addOnCanceledListener { cont.resume(null) }
     }
 }

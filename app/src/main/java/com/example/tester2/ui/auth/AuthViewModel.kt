@@ -46,6 +46,13 @@ class AuthViewModel @Inject constructor(
     private val _canAutoLogin = MutableStateFlow(false)
     val canAutoLogin = _canAutoLogin.asStateFlow()
 
+    private val _isAuthCheckComplete = MutableStateFlow(false)
+    val isAuthCheckComplete = _isAuthCheckComplete.asStateFlow()
+
+    val hasSeenSplash: Boolean get() = preferenceManager.hasSeenSplash()
+
+    fun markSplashSeen() = preferenceManager.markSplashSeen()
+
     init {
         checkLoginStatus()
         loadStoredId()
@@ -67,13 +74,21 @@ class AuthViewModel @Inject constructor(
     }
     
     private fun generateNewId() {
-        // Simple generator for demo/anonymous flow
-        val adjectives = listOf("Blue", "Red", "Green", "Electric", "Silent", "Happy", "Crimson", "Neon")
-        val animals = listOf("Fox", "Bear", "Wolf", "Tiger", "Eagle", "Panda", "Shark", "Hawk")
-        val newId = "${adjectives.random()}${animals.random()}${ (10..99).random() }"
+        val first = listOf(
+            "sun", "dew", "star", "moon", "rain", "mist", "dawn", "fog", "ice", "oak",
+            "pine", "sea", "sky", "swift", "wind", "flame", "frost", "gold", "jade", "lake",
+            "leaf", "moss", "reef", "rose", "sage", "snow", "tide", "vine", "wave", "wild",
+            "ash", "bay", "cedar", "fern", "glen", "haze", "ivy", "lark", "reed", "thorn"
+        )
+        val second = listOf(
+            "kite", "leaf", "drift", "glow", "stone", "light", "spark", "shade", "ray", "brook",
+            "crest", "fall", "path", "rise", "song", "bird", "bloom", "shore", "cliff", "cloud",
+            "dune", "ember", "field", "hawk", "hill", "vale", "wood", "fire", "wind", "grove",
+            "creek", "isle", "loch", "peak", "pool", "ridge", "spring", "trail", "wren", "fawn"
+        )
+        val newId = "${first.random()}${second.random()}"
         _generatedId.value = newId
-        // preferenceManager.saveLastGeneratedId(newId) // Do not save candidate ID until logged in
-        _canAutoLogin.value = false // New ID means new user, no auto-login yet
+        _canAutoLogin.value = false
     }
     
     fun onRefreshId() {
@@ -95,6 +110,7 @@ class AuthViewModel @Inject constructor(
             if (_isLoggedIn.value) {
                 _username.value = repository.getCurrentUsername()
             }
+            _isAuthCheckComplete.value = true
         }
     }
 

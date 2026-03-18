@@ -26,11 +26,14 @@ class AndroidAudioRecorder @Inject constructor(
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioChannels(1)
+            setAudioSamplingRate(44100)
+            setAudioEncodingBitRate(128_000)
             setOutputFile(FileOutputStream(outputFile).fd)
-            
+
             prepare()
             start()
-            
+
             recorder = this
         }
     }
@@ -40,4 +43,6 @@ class AndroidAudioRecorder @Inject constructor(
         recorder?.reset()
         recorder = null
     }
+
+    override fun maxAmplitude(): Int = recorder?.maxAmplitude ?: 0
 }

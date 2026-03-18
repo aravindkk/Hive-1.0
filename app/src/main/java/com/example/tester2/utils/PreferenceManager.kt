@@ -15,6 +15,7 @@ class PreferenceManager @Inject constructor(
     companion object {
         private const val KEY_LAST_GENERATED_ID = "last_generated_id"
         private const val KEY_LAST_LOGIN_TIMESTAMP = "last_login_timestamp"
+        private const val KEY_HAS_SEEN_SPLASH = "has_seen_splash"
     }
 
     fun saveLastGeneratedId(id: String) {
@@ -31,6 +32,12 @@ class PreferenceManager @Inject constructor(
 
     fun getLastLoginTimestamp(): Long {
         return prefs.getLong(KEY_LAST_LOGIN_TIMESTAMP, 0L)
+    }
+
+    fun hasSeenSplash(): Boolean = prefs.getBoolean(KEY_HAS_SEEN_SPLASH, false)
+
+    fun markSplashSeen() {
+        prefs.edit().putBoolean(KEY_HAS_SEEN_SPLASH, true).apply()
     }
 
     fun clear() {

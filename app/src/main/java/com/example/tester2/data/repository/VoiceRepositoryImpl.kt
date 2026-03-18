@@ -16,8 +16,11 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
-import io.github.jan.supabase.storage.storage
 import io.ktor.client.request.headers
+import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.json.Json
+import com.example.tester2.data.model.TopicSummary
+import com.example.tester2.data.model.TranscriptionResult
 import javax.inject.Inject
 
 class VoiceRepositoryImpl @Inject constructor(
@@ -91,7 +94,7 @@ class VoiceRepositoryImpl @Inject constructor(
 
     private suspend fun fetchVoices(userId: String? = null, topicId: String? = null): List<VoiceNote> {
         return try {
-            supabase.from("voices").select {
+            supabase.from("voices").select(io.github.jan.supabase.postgrest.query.Columns.raw("*, topics(title)")) {
                 filter {
                     if (userId != null) eq("user_id", userId)
                     if (topicId != null) eq("topic_id", topicId)
@@ -104,26 +107,76 @@ class VoiceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun transcribeAudio(storagePath: String): Result<Unit> {
+    override suspend fun transcribeAudio(storagePath: String, lat: Double?, lng: Double?): Result<TranscriptionResult> {
         return try {
-            supabase.functions.invoke("transcribe-audio") {
-                // Fix for: Fail to prepare request body for sending. Content-Type: null
+            val response = supabase.functions.invoke("transcribe-audio") {
                 headers {
                     append(io.ktor.http.HttpHeaders.ContentType, io.ktor.http.ContentType.Application.Json.toString())
                 }
                 setBody(buildJsonObject {
                     put("storage_path", storagePath)
+                    if (lat != null) put("lat", lat)
+                    if (lng != null) put("lng", lng)
                 })
             }
-            Result.success(Unit)
+            val json = Json { ignoreUnknownKeys = true }
+            val result = json.decodeFromString<TranscriptionResult>(response.bodyAsText())
+            Result.success(result)
         } catch (e: Exception) {
+            e.printStackTrace()
             Result.failure(e)
         }
     }
 
     override fun getAudioUrl(storagePath: String): String {
-        // storage extension requires import, using manual construction to be safe
-        // Format: https://project.supabase.co/storage/v1/object/public/bucket/path
-        return "${supabase.supabaseUrl}/storage/v1/object/public/audio-notes/$storagePath" 
+        val host = supabase.supabaseUrl.removePrefix("https://").removePrefix("http://")
+        return "https://$host/storage/v1/object/public/audio-notes/$storagePath"
+    }
+
+    override fun getTopicSummaryFlow(topicId: String): Flow<TopicSummary?> = flow {
+        // Initial fetch
+        emit(fetchSummary(topicId))
+
+        // Realtime subscription — re-fetch on any INSERT/UPDATE to topic_summaries for this topic
+        try {
+            val channel = supabase.realtime.channel("topic-summary-$topicId")
+            val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "topic_summaries"
+                filter("topic_id", FilterOperator.EQ, topicId)
+            }
+            channel.subscribe()
+            changeFlow.collect {
+                emit(fetchSummary(topicId))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private suspend fun fetchSummary(topicId: String): TopicSummary? {
+        return try {
+            supabase.from("topic_summaries")
+                .select { filter { eq("topic_id", topicId) } }
+                .decodeList<TopicSummary>()
+                .firstOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    override suspend fun triggerTopicSummary(topicId: String) {
+        try {
+            android.util.Log.d("VoiceRepo", "Triggering generate-topic-summary for $topicId")
+            supabase.functions.invoke("generate-topic-summary") {
+                headers {
+                    append(io.ktor.http.HttpHeaders.ContentType, io.ktor.http.ContentType.Application.Json.toString())
+                }
+                setBody(buildJsonObject { put("topic_id", topicId) })
+            }
+            android.util.Log.d("VoiceRepo", "generate-topic-summary trigger sent")
+        } catch (e: Exception) {
+            android.util.Log.e("VoiceRepo", "triggerTopicSummary failed: ${e.message}", e)
+        }
     }
 }
