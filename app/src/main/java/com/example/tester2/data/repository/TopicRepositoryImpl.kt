@@ -78,9 +78,7 @@ class TopicRepositoryImpl @Inject constructor(
 
     override fun getNewTopics(): Flow<List<Topic>> = flow {
         try {
-            val topics = supabase.from("topics")
-                .select()
-                .decodeList<Topic>()
+            val topics = supabase.postgrest.rpc("get_popular_topics").decodeList<Topic>()
                 .sortedByDescending { it.createdAt }
             emit(topics)
         } catch (e: Exception) {
@@ -110,11 +108,10 @@ class TopicRepositoryImpl @Inject constructor(
                 return@flow
             }
 
-            val topics = supabase.from("topics")
-                .select()
-                .decodeList<Topic>()
+            // Use the RPC so voice_count is populated, then filter to user's topics
+            val topics = supabase.postgrest.rpc("get_popular_topics").decodeList<Topic>()
                 .filter { it.id in topicIds }
-                .sortedByDescending { it.voiceCount }
+                .sortedByDescending { it.createdAt }
 
             emit(topics)
         } catch (e: Exception) {

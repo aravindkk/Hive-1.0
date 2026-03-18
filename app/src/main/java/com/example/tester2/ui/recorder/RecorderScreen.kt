@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -143,7 +142,6 @@ fun RecorderContent(
                     color = Color(0xFF1C1C1C)
                 )
                 Spacer(Modifier.weight(1f))
-                Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF9E9E9E), modifier = Modifier.size(20.dp))
             }
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {

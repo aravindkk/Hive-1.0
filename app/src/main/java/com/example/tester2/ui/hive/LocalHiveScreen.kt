@@ -7,6 +7,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.tester2.data.model.Topic
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -115,12 +119,6 @@ fun LocalHiveScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Icon(
-                Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = Color(0xFF666666),
-                modifier = Modifier.size(26.dp)
-            )
         }
 
         // ── Tabs ─────────────────────────────────────────────
@@ -161,34 +159,42 @@ fun LocalHiveScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Bubble cluster area ───────────────────────────────
+        // ── Content area ──────────────────────────────────────
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
         ) {
             if (isLoading) {
-                BubbleShimmer()
+                if (selectedTab == 0) BubbleShimmer() else TopicListShimmer()
             } else if (topics.isEmpty()) {
+                val emptyMessage = when (selectedTab) {
+                    2 -> "You haven't contributed to any topics yet.\nStart recording to join a discussion!"
+                    else -> "No topics yet.\nRecord a thought to start one."
+                }
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        "No topics yet.\nRecord a thought to start one.",
+                        emptyMessage,
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.Gray,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(32.dp)
                     )
                 }
-            } else {
+            } else if (selectedTab == 0) {
                 val hScroll = rememberScrollState()
                 val vScroll = rememberScrollState()
 
-                // Auto-scroll to center the canvas in the viewport on first load
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val viewportWidthPx = with(density) { maxWidth.toPx() }.toInt()
+                val viewportHeightPx = with(density) { maxHeight.toPx() }.toInt()
+
+                // Scroll so the bubble cluster is centered in the viewport
                 LaunchedEffect(bubbleCanvas.canvasWidth, bubbleCanvas.canvasHeight) {
                     val canvasWidthPx = with(density) { bubbleCanvas.canvasWidth.dp.toPx() }.toInt()
                     val canvasHeightPx = with(density) { bubbleCanvas.canvasHeight.dp.toPx() }.toInt()
-                    hScroll.scrollTo((canvasWidthPx / 2).coerceAtLeast(0))
-                    vScroll.scrollTo((canvasHeightPx / 2).coerceAtLeast(0))
+                    hScroll.scrollTo(((canvasWidthPx - viewportWidthPx) / 2).coerceAtLeast(0))
+                    vScroll.scrollTo(((canvasHeightPx - viewportHeightPx) / 2).coerceAtLeast(0))
                 }
 
                 Box(
@@ -231,6 +237,13 @@ fun LocalHiveScreen(
                         }
                     }
                 }
+                } // BoxWithConstraints
+            } else {
+                TopicListView(
+                    topics = topics,
+                    isMyTopics = selectedTab == 2,
+                    onTopicClick = onTopicClick
+                )
             }
 
             // ── Mini-player (floats above the scroll area) ────────
@@ -426,6 +439,152 @@ private fun Bubble(
             }
         }
     }
+}
+
+@Composable
+private fun TopicListView(
+    topics: List<Topic>,
+    isMyTopics: Boolean,
+    onTopicClick: (Topic) -> Unit
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(topics, key = { it.id }) { topic ->
+            TopicListCard(topic = topic, isMyTopics = isMyTopics, onClick = { onTopicClick(topic) })
+        }
+    }
+}
+
+@Composable
+private fun TopicListCard(topic: Topic, isMyTopics: Boolean, onClick: () -> Unit) {
+    val icon = categoryIcon(topic.title)
+    val iconBg = Color(0xFFD1F2DF)
+    val iconTint = Color(0xFF166534)
+    val age = remember(topic.createdAt) { relativeTime(topic.createdAt) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = topic.title,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color(0xFF1A1A1A),
+                    maxLines = 2
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isMyTopics) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFD1F2DF)
+                        ) {
+                            Text(
+                                "Contributed",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color(0xFF166534),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                    if (topic.voiceCount > 0) {
+                        Text(
+                            "${topic.voiceCount} ${if (topic.voiceCount == 1L) "voice" else "voices"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF666666)
+                        )
+                        Text("·", style = MaterialTheme.typography.bodySmall, color = Color(0xFFBBBBBB))
+                    }
+                    Text(age, style = MaterialTheme.typography.bodySmall, color = Color(0xFF999999))
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color(0xFFCCCCCC),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun TopicListShimmer() {
+    val transition = rememberInfiniteTransition(label = "list_shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f, targetValue = 1000f,
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
+        label = "shimmer_x"
+    )
+    val brush = Brush.linearGradient(
+        colors = listOf(Color(0xFFE8E8E8), Color(0xFFF5F5F5), Color(0xFFE8E8E8)),
+        start = Offset(translateAnim - 300f, 0f),
+        end = Offset(translateAnim, 0f)
+    )
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        userScrollEnabled = false
+    ) {
+        items(6) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                shadowElevation = 1.dp
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(brush))
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Box(Modifier.fillMaxWidth(0.65f).height(14.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                        Spacer(Modifier.height(8.dp))
+                        Box(Modifier.fillMaxWidth(0.4f).height(10.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun relativeTime(createdAt: String): String {
+    return try {
+        val then = ZonedDateTime.parse(createdAt)
+        val now = ZonedDateTime.now()
+        val minutes = ChronoUnit.MINUTES.between(then, now)
+        when {
+            minutes < 60 -> "${minutes}m ago"
+            minutes < 1440 -> "${minutes / 60}h ago"
+            minutes < 10080 -> "${minutes / 1440}d ago"
+            else -> "${minutes / 10080}w ago"
+        }
+    } catch (e: Exception) { "" }
 }
 
 @Composable

@@ -29,16 +29,16 @@ class VoiceRepositoryImpl @Inject constructor(
 
     override suspend fun createVoiceNote(storagePath: String, topicId: String?): Result<Unit> {
         return try {
-            val userId = supabase.auth.currentUserOrNull()?.id ?: throw IllegalStateException("User not logged in")
-            
+            val user = supabase.auth.currentUserOrNull() ?: throw IllegalStateException("User not logged in")
+            val username = user.userMetadata?.get("username")?.toString()?.removeSurrounding("\"")
+
             val voiceNote = buildJsonObject {
-                put("user_id", userId)
+                put("user_id", user.id)
                 put("storage_path", storagePath)
-                if (topicId != null) {
-                    put("topic_id", topicId)
-                }
+                if (topicId != null) put("topic_id", topicId)
+                if (username != null) put("username", username)
             }
-            
+
             supabase.from("voices").insert(voiceNote)
             Result.success(Unit)
         } catch (e: Exception) {

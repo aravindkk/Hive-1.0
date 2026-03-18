@@ -473,13 +473,13 @@ private fun LyricsSegmentRow(
             if (segment.attributedTo.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
-                    segment.attributedTo.take(3).forEachIndexed { i, userId ->
-                        val avatarColor = remember(userId) {
+                    segment.attributedTo.take(3).forEachIndexed { i, username ->
+                        val avatarColor = remember(username) {
                             val colors = listOf(
                                 Color(0xFFBBDEFB), Color(0xFFC8E6C9), Color(0xFFFFCCBC),
                                 Color(0xFFF8BBD0), Color(0xFFE1BEE7), Color(0xFFFFF9C4)
                             )
-                            colors[Math.abs(userId.hashCode()) % colors.size]
+                            colors[Math.abs(username.hashCode()) % colors.size]
                         }
                         Box(
                             modifier = Modifier
@@ -490,7 +490,7 @@ private fun LyricsSegmentRow(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = userId.take(2).uppercase(),
+                                text = initialsFrom(username),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp),
                                 color = Color(0xFF555555)
                             )
@@ -525,12 +525,13 @@ private fun CommunityVoiceCard(
         (0 until 20).map { 0.2f + rng.nextFloat() * 0.8f }
     }
 
-    val avatarColor = remember(voice.userId) {
+    val displayName = voice.username ?: voice.userId
+    val avatarColor = remember(displayName) {
         val colors = listOf(
             Color(0xFFBBDEFB), Color(0xFFC8E6C9), Color(0xFFFFCCBC),
             Color(0xFFF8BBD0), Color(0xFFE1BEE7), Color(0xFFFFF9C4)
         )
-        colors[Math.abs(voice.userId.hashCode()) % colors.size]
+        colors[Math.abs(displayName.hashCode()) % colors.size]
     }
 
     Surface(
@@ -549,7 +550,7 @@ private fun CommunityVoiceCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = voice.userId.take(2).uppercase(),
+                        text = initialsFrom(displayName),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = Color(0xFF555555)
                     )
@@ -615,6 +616,12 @@ private fun CommunityVoiceCard(
             }
         }
     }
+}
+
+// "SilentFox" → "SF", "ElectricStar" → "ES", fallback to first 2 chars
+private fun initialsFrom(name: String): String {
+    val uppers = name.filter { it.isUpperCase() }
+    return if (uppers.length >= 2) uppers.take(2) else name.take(2).uppercase()
 }
 
 private fun formatTimestamp(createdAt: String): String {

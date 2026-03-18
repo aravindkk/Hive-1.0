@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -91,12 +90,6 @@ fun TimelineScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = null,
-                tint = TextGray,
-                modifier = Modifier.size(20.dp)
-            )
         }
 
         when {

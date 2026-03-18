@@ -46,7 +46,7 @@ async function generateSummary(topic_id: string) {
 
     const { data: voices } = await supabase
         .from("voices")
-        .select("id, user_id, transcript")
+        .select("id, user_id, username, transcript")
         .eq("topic_id", topic_id)
         .not("transcript", "is", null)
         .order("created_at", { ascending: true });
@@ -56,8 +56,8 @@ async function generateSummary(topic_id: string) {
         return;
     }
 
-    const contributions = voices
-        .map((v: any) => `[${v.user_id.slice(0, 8)}]: "${v.transcript}"`)
+    const contributions = (voices as any[])
+        .map((v) => `[${v.username ?? v.user_id.slice(0, 8)}]: "${v.transcript}"`)
         .join("\n");
 
     const summaryPrompt = `You are summarizing a neighborhood voice discussion for the Hive app. Assume you are a person in that neighbourhood.
@@ -85,7 +85,7 @@ Return ONLY valid JSON, no markdown:
 
 Rules:
 - Each segment should be 1-2 sentences
-- "attributed_to" lists the user IDs whose voices most support this segment (use the 8-char prefix IDs from the contributions list)
+- "attributed_to" lists the usernames whose voices most support this segment (use the exact username labels from the contributions list)
 - If a segment is the intro/outro with no direct attribution, use an empty array
 - Keep language conversational and suited for text-to-speech
 - Write in present tense, as if summarizing live community sentiment`;

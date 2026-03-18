@@ -1,9 +1,5 @@
 package com.example.tester2.ui
 
-import android.content.IntentSender
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +16,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,11 +35,6 @@ import com.example.tester2.ui.recorder.RecorderScreen
 import com.example.tester2.ui.theme.HiveGreen
 import com.example.tester2.ui.theme.HiveTheme
 import com.example.tester2.ui.timeline.TimelineScreen
-import com.google.android.gms.common.api.ResolvableApiException
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.Priority
 
 private val NavActiveColor = Color(0xFF166534)
 private val NavInactiveColor = Color(0xFF9E9E9E)
@@ -134,26 +124,8 @@ fun MainScreen() {
         )
     )
 
-    val context = LocalContext.current
-    val locationSettingsLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) {}
-
     LaunchedEffect(Unit) {
         multiplePermissionsState.launchMultiplePermissionRequest()
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
-        val client = LocationServices.getSettingsClient(context)
-        client.checkLocationSettings(
-            LocationSettingsRequest.Builder().addLocationRequest(locationRequest).build()
-        ).addOnFailureListener { exception ->
-            if (exception is ResolvableApiException) {
-                try {
-                    locationSettingsLauncher.launch(
-                        IntentSenderRequest.Builder(exception.resolution).build()
-                    )
-                } catch (_: IntentSender.SendIntentException) {}
-            }
-        }
     }
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
