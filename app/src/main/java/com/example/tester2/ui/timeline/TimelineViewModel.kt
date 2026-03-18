@@ -31,6 +31,9 @@ class TimelineViewModel @Inject constructor(
     private val _voiceNotes = MutableStateFlow<List<VoiceNote>>(emptyList())
     val voiceNotes = _voiceNotes.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading.asStateFlow()
+
     private val _areaName = MutableStateFlow("Your area")
     val areaName = _areaName.asStateFlow()
 
@@ -70,6 +73,7 @@ class TimelineViewModel @Inject constructor(
         voiceJob = viewModelScope.launch {
             voiceRepository.getMyVoiceNotes().collect { notes ->
                 _voiceNotes.value = notes
+                _isLoading.value = false
             }
         }
     }

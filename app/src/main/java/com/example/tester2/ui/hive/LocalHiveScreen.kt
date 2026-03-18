@@ -1,12 +1,16 @@
 package com.example.tester2.ui.hive
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -24,7 +29,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,13 +52,19 @@ private val TextDark = Color(0xFF1A1A1A)
 
 private val tabLabels = listOf("Trending", "New", "My Topics")
 
-// Data class to hold computed bubble layout
+// Absolute top-left position within the canvas (in dp)
 private data class BubbleLayout(
     val topic: Topic,
-    val sizeDp: Dp,
-    val offsetX: Dp,
-    val offsetY: Dp,
+    val sizeDp: Float,
+    val x: Float,
+    val y: Float,
     val colorIndex: Int
+)
+
+private data class BubbleCanvasData(
+    val layouts: List<BubbleLayout>,
+    val canvasWidth: Float,
+    val canvasHeight: Float
 )
 
 @Composable
@@ -63,16 +73,14 @@ fun LocalHiveScreen(
     onTopicClick: (Topic) -> Unit
 ) {
     val topics by viewModel.popularTopics.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     val playingUrl by viewModel.playingUrl.collectAsState()
     val playingTopicTitle by viewModel.playingTopicTitle.collectAsState()
     val areaName by viewModel.areaName.collectAsState()
 
-    // Calculate dynamic bubble layout based on screen density to avoid overlaps
     val density = LocalDensity.current
-    val bubbleLayouts = remember(topics, density) {
-        computeBubbleLayouts(topics, 6)
-    }
+    val bubbleCanvas = remember(topics) { computeBubbleLayouts(topics) }
 
     Column(
         modifier = Modifier
@@ -94,14 +102,18 @@ fun LocalHiveScreen(
                 modifier = Modifier.size(24.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text(
-                text = areaName,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif
-                ),
-                color = Color(0xFF1A1A1A)
-            )
+            if (areaName == "Your area") {
+                HeaderShimmer()
+            } else {
+                Text(
+                    text = areaName,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif
+                    ),
+                    color = Color(0xFF1A1A1A)
+                )
+            }
             Spacer(Modifier.weight(1f))
             Icon(
                 Icons.Default.Settings,
@@ -155,7 +167,9 @@ fun LocalHiveScreen(
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            if (topics.isEmpty()) {
+            if (isLoading) {
+                BubbleShimmer()
+            } else if (topics.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         "No topics yet.\nRecord a thought to start one.",
@@ -166,49 +180,60 @@ fun LocalHiveScreen(
                     )
                 }
             } else {
-                // Background Concentric Circles
-                Canvas(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    val centerOffset = Offset(size.width / 2, size.height / 2)
-                    drawCircle(
-                        color = Color(0xFFE5E5E0).copy(alpha = 0.4f),
-                        radius = 180.dp.toPx(),
-                        center = centerOffset,
-                        style = Stroke(width = 1.dp.toPx())
-                    )
-                    drawCircle(
-                        color = Color(0xFFE5E5E0).copy(alpha = 0.4f),
-                        radius = 260.dp.toPx(),
-                        center = centerOffset,
-                        style = Stroke(width = 1.dp.toPx())
-                    )
-                    drawCircle(
-                        color = Color(0xFFE5E5E0).copy(alpha = 0.4f),
-                        radius = 340.dp.toPx(),
-                        center = centerOffset,
-                        style = Stroke(width = 1.dp.toPx())
-                    )
+                val hScroll = rememberScrollState()
+                val vScroll = rememberScrollState()
+
+                // Auto-scroll to center the canvas in the viewport on first load
+                LaunchedEffect(bubbleCanvas.canvasWidth, bubbleCanvas.canvasHeight) {
+                    val canvasWidthPx = with(density) { bubbleCanvas.canvasWidth.dp.toPx() }.toInt()
+                    val canvasHeightPx = with(density) { bubbleCanvas.canvasHeight.dp.toPx() }.toInt()
+                    hScroll.scrollTo((canvasWidthPx / 2).coerceAtLeast(0))
+                    vScroll.scrollTo((canvasHeightPx / 2).coerceAtLeast(0))
                 }
 
-                // Dislay Dynamic Bubbles
-                bubbleLayouts.forEach { layout ->
-                    Bubble(
-                        topic = layout.topic,
-                        size = layout.sizeDp,
-                        colorIndex = layout.colorIndex,
-                        modifier = Modifier.align(Alignment.Center),
-                        offsetX = layout.offsetX,
-                        offsetY = layout.offsetY,
-                        onClick = {
-                            viewModel.onTopicTapped(layout.topic)
-                            onTopicClick(layout.topic)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .horizontalScroll(hScroll)
+                        .verticalScroll(vScroll)
+                ) {
+                    Box(
+                        modifier = Modifier.size(
+                            width = bubbleCanvas.canvasWidth.dp,
+                            height = bubbleCanvas.canvasHeight.dp
+                        )
+                    ) {
+                        // Concentric guide circles centered in the canvas
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                            val center = Offset(size.width / 2, size.height / 2)
+                            listOf(180.dp.toPx(), 260.dp.toPx(), 340.dp.toPx()).forEach { r ->
+                                drawCircle(
+                                    color = Color(0xFFE5E5E0).copy(alpha = 0.4f),
+                                    radius = r,
+                                    center = center,
+                                    style = Stroke(width = 1.dp.toPx())
+                                )
+                            }
                         }
-                    )
+
+                        bubbleCanvas.layouts.forEach { layout ->
+                            Bubble(
+                                topic = layout.topic,
+                                sizeDp = layout.sizeDp,
+                                colorIndex = layout.colorIndex,
+                                x = layout.x,
+                                y = layout.y,
+                                onClick = {
+                                    viewModel.onTopicTapped(layout.topic)
+                                    onTopicClick(layout.topic)
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
-            // ── Mini-player ───────────────────────────────────────
+            // ── Mini-player (floats above the scroll area) ────────
             if (playingUrl != null) {
                 Box(
                     modifier = Modifier
@@ -225,7 +250,6 @@ fun LocalHiveScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Canvas(modifier = Modifier.size(20.dp)) {
-                            // Simple equalizer drawing
                             val barWidth = 3.dp.toPx()
                             val spacing = 3.dp.toPx()
                             val color = Color(0xFF0F766E)
@@ -233,20 +257,14 @@ fun LocalHiveScreen(
                             drawLine(color, Offset(barWidth + spacing, size.height * 0.1f), Offset(barWidth + spacing, size.height * 0.9f), barWidth, StrokeCap.Round)
                             drawLine(color, Offset((barWidth + spacing) * 2, size.height * 0.4f), Offset((barWidth + spacing) * 2, size.height * 0.6f), barWidth, StrokeCap.Round)
                         }
-                        
                         Spacer(Modifier.width(12.dp))
+                        Text("Listening to ", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF1A1A1A))
                         Text(
-                            text = "Listening to ",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF1A1A1A)
-                        )
-                        Text(
-                            text = playingTopicTitle ?: "…",
+                            playingTopicTitle ?: "…",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = Color(0xFF0F766E)
                         )
                         Spacer(Modifier.width(24.dp))
-                        
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
@@ -255,12 +273,7 @@ fun LocalHiveScreen(
                                 .clickable { viewModel.stopAudio() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Stop",
-                                tint = Color(0xFF4B5563),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.Close, contentDescription = "Stop", tint = Color(0xFF4B5563), modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -269,135 +282,107 @@ fun LocalHiveScreen(
     }
 }
 
-// Compute sizes based on voice count, then run circular packing algorithm
-private fun computeBubbleLayouts(topics: List<Topic>, maxCount: Int): List<BubbleLayout> {
-    if (topics.isEmpty()) return emptyList()
+// Radial packing — no topic limit, returns absolute canvas coords
+private fun computeBubbleLayouts(topics: List<Topic>): BubbleCanvasData {
+    if (topics.isEmpty()) return BubbleCanvasData(emptyList(), 400f, 400f)
 
-    val displayTopics = topics.sortedByDescending { it.voiceCount }.take(maxCount)
-    
-    // 1) Determine sizing dynamically based on relative voiceCount
-    val maxVoiceCount = displayTopics.maxOf { it.voiceCount }.coerceAtLeast(1L).toFloat()
-    
-    val minSizeDp = 100f
-    val maxSizeDp = 180f
-    
-    // Helper to compute size for a given count
+    val sorted = topics.sortedByDescending { it.voiceCount }
+    val maxCount = sorted.maxOf { it.voiceCount }.coerceAtLeast(1L).toFloat()
+
     fun sizeFor(count: Long): Float {
-        val ratio = count.toFloat() / maxVoiceCount
-        // Use a slight curve so small items aren't completely tiny, but differences are noticeable
-        val curvedRatio = Math.pow(ratio.toDouble(), 0.6).toFloat()
-        return minSizeDp + (maxSizeDp - minSizeDp) * curvedRatio
+        val ratio = count.toFloat() / maxCount
+        val curved = Math.pow(ratio.toDouble(), 0.6).toFloat()
+        return 90f + (160f - 90f) * curved
     }
 
-    // 2) Pack visually radially outward so they don't overlap
-    // List of placed circles: Pair(Offset(x,y), radius)
+    // Center-relative placements: (centerOffset, radius)
     val placed = mutableListOf<Pair<Offset, Float>>()
-    val layouts = mutableListOf<BubbleLayout>()
-    
-    val paddingPx = 8f // Extra buffer between bubbles
-    
-    displayTopics.forEachIndexed { index, topic ->
-        val bubbleSizeDp = sizeFor(topic.voiceCount)
-        val radius = bubbleSizeDp / 2f
-        
+    val centerRelative = mutableListOf<Triple<Offset, Float, Int>>() // offset, size, index
+
+    sorted.forEachIndexed { index, topic ->
+        val size = sizeFor(topic.voiceCount)
+        val radius = size / 2f
         var placedOffset = Offset.Zero
-        
+
         if (index == 0) {
-            // First (largest) bubble goes directly in center
-            placedOffset = Offset.Zero
-            placed.add(Pair(placedOffset, radius))
+            placed.add(Pair(Offset.Zero, radius))
         } else {
-            // Radial search for a valid spot
             var found = false
-            var currentDistance = 10f // Start slightly offset to search outward
-            var angleOffset = index * 45f // Stagger starting angle for visual distribution
-            var angleStep = 30f // How much we step angle while searching
-            
+            var distance = radius + placed[0].second // start touching the first bubble
+            val angleStart = index * 47f
+
             while (!found) {
-                var angle = angleOffset
-                var attemptsInRing = 0
-                val maxAttemptsInRing = (360f / angleStep).toInt()
-                
-                while (attemptsInRing < maxAttemptsInRing && !found) {
+                var angle = angleStart
+                var attempts = 0
+                while (attempts < 24 && !found) {
                     val rad = Math.toRadians(angle.toDouble())
-                    val testX = currentDistance * cos(rad).toFloat()
-                    val testY = currentDistance * sin(rad).toFloat()
-                    val testOffset = Offset(testX, testY)
-                    
-                    // Check overlap against all placed
-                    var overlaps = false
-                    for (p in placed) {
-                        val existingOffset = p.first
-                        val existingRadius = p.second
-                        
-                        val dx = testOffset.x - existingOffset.x
-                        val dy = testOffset.y - existingOffset.y
-                        val distSq = dx * dx + dy * dy
-                        
-                        val minAllowedDist = radius + existingRadius + paddingPx
-                        if (distSq < minAllowedDist * minAllowedDist) {
-                            overlaps = true
-                            break
-                        }
+                    val testX = distance * cos(rad).toFloat()
+                    val testY = distance * sin(rad).toFloat()
+                    val test = Offset(testX, testY)
+                    val overlaps = placed.any { (pos, r) ->
+                        val dx = test.x - pos.x
+                        val dy = test.y - pos.y
+                        dx * dx + dy * dy < (radius + r + 6f) * (radius + r + 6f)
                     }
-                    
                     if (!overlaps) {
-                        placedOffset = testOffset
+                        placedOffset = test
                         found = true
                     } else {
-                        angle += angleStep
-                        attemptsInRing++
+                        angle += 15f
+                        attempts++
                     }
                 }
-                
-                // If we didn't find a spot in this ring, increase distance and try again
-                if (!found) {
-                    currentDistance += 10f
-                }
+                if (!found) distance += 8f
             }
-            
             placed.add(Pair(placedOffset, radius))
         }
-        
-        layouts.add(
-            BubbleLayout(
-                topic = topic,
-                sizeDp = bubbleSizeDp.dp,
-                offsetX = placedOffset.x.dp, // Simplification: calculating via pseudo-Dp coordinate space
-                offsetY = placedOffset.y.dp,
-                colorIndex = index
-            )
+        centerRelative.add(Triple(placedOffset, size, index))
+    }
+
+    // Convert center-relative → absolute top-left, with padding
+    val pad = 48f
+    val minX = centerRelative.minOf { (o, s, _) -> o.x - s / 2f } - pad
+    val minY = centerRelative.minOf { (o, s, _) -> o.y - s / 2f } - pad
+    val maxX = centerRelative.maxOf { (o, s, _) -> o.x + s / 2f } + pad
+    val maxY = centerRelative.maxOf { (o, s, _) -> o.y + s / 2f } + pad
+
+    val layouts = sorted.mapIndexed { index, topic ->
+        val (offset, size, _) = centerRelative[index]
+        BubbleLayout(
+            topic = topic,
+            sizeDp = size,
+            x = offset.x - size / 2f - minX,
+            y = offset.y - size / 2f - minY,
+            colorIndex = index
         )
     }
-    
-    return layouts
+
+    return BubbleCanvasData(layouts, maxX - minX, maxY - minY)
 }
 
 @Composable
 private fun Bubble(
     topic: Topic,
-    size: Dp,
+    sizeDp: Float,
     colorIndex: Int,
-    modifier: Modifier = Modifier,
-    offsetX: Dp,
-    offsetY: Dp,
+    x: Float,
+    y: Float,
     onClick: () -> Unit
 ) {
     val bubbleColors = listOf(BubbleTeal, BubbleBlue, BubbleWhite, BubbleCoral, BubbleYellow)
     val textColors = listOf(TextTeal, TextBlue, TextDark, TextCoral, TextYellow)
-    
     val safeIndex = colorIndex % bubbleColors.size
     val color = bubbleColors[safeIndex]
     val textColor = textColors[safeIndex]
-    val iconColor = textColor
+    val size = sizeDp.dp
 
     Box(
-        modifier = modifier
-            .offset(x = offsetX, y = offsetY)
+        modifier = Modifier
+            .offset(x = x.dp, y = y.dp)
             .size(size)
             .shadow(
-                elevation = if (color == BubbleWhite) 8.dp else 0.dp, 
-                shape = CircleShape, 
+                elevation = if (color == BubbleWhite) 8.dp else 0.dp,
+                shape = CircleShape,
                 spotColor = Color.Black.copy(alpha = 0.1f)
             )
             .clip(CircleShape)
@@ -418,24 +403,102 @@ private fun Bubble(
             Icon(
                 imageVector = categoryIcon(topic.title),
                 contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(if (size < 110.dp) 18.dp else 26.dp)
+                tint = textColor,
+                modifier = Modifier.size(if (sizeDp < 110f) 18.dp else 26.dp)
             )
             Text(
                 text = topic.title,
-                style = if (size < 110.dp) MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium) else MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Serif),
+                style = if (sizeDp < 110f)
+                    MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
+                else
+                    MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Serif),
                 textAlign = TextAlign.Center,
                 color = textColor,
-                lineHeight = if (size < 110.dp) 14.sp else 20.sp,
+                lineHeight = if (sizeDp < 110f) 14.sp else 20.sp,
                 maxLines = 2
             )
-            if (size > 110.dp) {
+            if (sizeDp > 110f) {
                 Text(
                     text = voiceCountLabel(topic.voiceCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = textColor.copy(alpha = 0.7f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun HeaderShimmer() {
+    val transition = rememberInfiniteTransition(label = "header_shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 600f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "header_translate"
+    )
+    val brush = Brush.linearGradient(
+        colors = listOf(Color(0xFFE0E0E0), Color(0xFFF5F5F5), Color(0xFFE0E0E0)),
+        start = Offset(translateAnim - 200f, 0f),
+        end = Offset(translateAnim, 0f)
+    )
+    Box(
+        modifier = Modifier
+            .width(140.dp)
+            .height(22.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(brush)
+    )
+}
+
+@Composable
+private fun BubbleShimmer() {
+    val transition = rememberInfiniteTransition(label = "bubble_shimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bubble_alpha"
+    )
+
+    // Ghost bubbles: (offsetX, offsetY, size) in dp relative to center
+    val ghosts = listOf(
+        Triple(0f, 0f, 160f),
+        Triple(140f, -60f, 110f),
+        Triple(-130f, 80f, 120f),
+        Triple(60f, 150f, 90f),
+        Triple(-80f, -140f, 100f),
+        Triple(170f, 100f, 80f),
+    )
+
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Concentric guide circles (same as real layout)
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2, size.height / 2)
+            listOf(180.dp.toPx(), 260.dp.toPx(), 340.dp.toPx()).forEach { r ->
+                drawCircle(
+                    color = Color(0xFFE5E5E0).copy(alpha = 0.4f),
+                    radius = r,
+                    center = center,
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+        }
+
+        ghosts.forEach { (x, y, size) ->
+            Box(
+                modifier = Modifier
+                    .offset(x = x.dp, y = y.dp)
+                    .size(size.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFE0E0E0).copy(alpha = alpha))
+            )
         }
     }
 }

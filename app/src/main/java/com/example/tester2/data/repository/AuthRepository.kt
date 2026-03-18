@@ -3,8 +3,10 @@ package com.example.tester2.data.repository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import javax.inject.Inject
@@ -58,6 +60,8 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun isUserLoggedIn(): Boolean {
+        // Wait for Auth to finish loading the persisted session from SharedPreferences
+        supabase.auth.sessionStatus.first { it !is SessionStatus.Initializing }
         return supabase.auth.currentSessionOrNull() != null
     }
 

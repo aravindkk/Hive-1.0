@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.secrets.gradle.plugin)
 }
@@ -92,7 +92,7 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
     // Serialization
@@ -107,6 +107,16 @@ dependencies {
 
     // Media3 ExoPlayer (audio playback)
     implementation(libs.media3.exoplayer)
+
+    // Room
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    // WorkManager + Hilt integration
+    implementation(libs.workmanager.runtime)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
 
     // Location
     implementation(libs.play.services.location)

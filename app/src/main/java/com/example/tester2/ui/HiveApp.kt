@@ -30,6 +30,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import android.net.Uri
 import com.example.tester2.R
 import com.example.tester2.ui.auth.AuthScreen
 import com.example.tester2.ui.auth.AuthViewModel
@@ -56,16 +57,16 @@ fun HiveApp() {
         val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
         val isAuthCheckComplete by authViewModel.isAuthCheckComplete.collectAsState()
 
-        // Hold on splash image while auth check is in progress (typically <200ms)
+        // Wait for auth check — show plain background so no splash flashes for returning users
         if (!isAuthCheckComplete) {
-            SplashContent()
+            Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF9F9F4)))
             return@HiveTheme
         }
 
         val navController = rememberNavController()
         val startDest = when {
-            !authViewModel.hasSeenSplash -> "splash"
             isLoggedIn -> "home"
+            !authViewModel.hasSeenSplash -> "splash"
             else -> "auth"
         }
 
@@ -173,9 +174,14 @@ fun MainScreen() {
                 )
             }
             composable(
-                route = "record?topicId={topicId}",
+                route = "record?topicId={topicId}&topicTitle={topicTitle}",
                 arguments = listOf(
                     androidx.navigation.navArgument("topicId") {
+                        nullable = true
+                        defaultValue = null
+                        type = androidx.navigation.NavType.StringType
+                    },
+                    androidx.navigation.navArgument("topicTitle") {
                         nullable = true
                         defaultValue = null
                         type = androidx.navigation.NavType.StringType
@@ -184,6 +190,7 @@ fun MainScreen() {
             ) { backStackEntry ->
                 RecorderScreen(
                     topicId = backStackEntry.arguments?.getString("topicId"),
+                    topicTitle = backStackEntry.arguments?.getString("topicTitle"),
                     onRecordingSaved = { navController.popBackStack() },
                     onNavigateToTopic = { topicId ->
                         navController.navigate("topic_deep_dive/$topicId") {
@@ -209,7 +216,9 @@ fun MainScreen() {
                 TopicDeepDiveScreen(
                     topicId = topicId,
                     onBackClick = { navController.popBackStack() },
-                    onSpeakClick = { id -> navController.navigate("record?topicId=$id") }
+                    onSpeakClick = { id, title ->
+                        navController.navigate("record?topicId=$id&topicTitle=${Uri.encode(title)}")
+                    }
                 )
             }
         }

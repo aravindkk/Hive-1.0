@@ -42,7 +42,7 @@ private val TextGray = Color(0xFF9E9E9E)
 fun TopicDeepDiveScreen(
     topicId: String,
     onBackClick: () -> Unit,
-    onSpeakClick: (String) -> Unit,
+    onSpeakClick: (topicId: String, topicTitle: String) -> Unit,
     viewModel: TopicDeepDiveViewModel = hiltViewModel()
 ) {
     // Fix: drive data loading from the composable parameter, not SavedStateHandle
@@ -181,7 +181,7 @@ fun TopicDeepDiveScreen(
         }
 
         Button(
-            onClick = { onSpeakClick(topicId) },
+            onClick = { onSpeakClick(topicId, topic?.title ?: "") },
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
@@ -392,7 +392,7 @@ private fun AiSummarySection(
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    "Play AI Summary",
+                                    "Play Summary",
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                     color = TextDark
                                 )

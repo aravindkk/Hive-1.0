@@ -35,6 +35,9 @@ class LocalHiveViewModel @Inject constructor(
     private val _popularTopics = MutableStateFlow<List<Topic>>(emptyList())
     val popularTopics = _popularTopics.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading.asStateFlow()
+
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab = _selectedTab.asStateFlow()
 
@@ -80,16 +83,27 @@ class LocalHiveViewModel @Inject constructor(
 
     private fun loadTopicsForTab(tab: Int) {
         topicsJob?.cancel()
+        _isLoading.value = true
         topicsJob = viewModelScope.launch {
             when (tab) {
-                0 -> topicRepository.getPopularTopics().collect { _popularTopics.value = it }
-                1 -> topicRepository.getNewTopics().collect { _popularTopics.value = it }
+                0 -> topicRepository.getPopularTopics().collect {
+                    _popularTopics.value = it
+                    _isLoading.value = false
+                }
+                1 -> topicRepository.getNewTopics().collect {
+                    _popularTopics.value = it
+                    _isLoading.value = false
+                }
                 2 -> {
                     val userId = supabase.auth.currentUserOrNull()?.id
                     if (userId != null) {
-                        topicRepository.getMyTopics(userId).collect { _popularTopics.value = it }
+                        topicRepository.getMyTopics(userId).collect {
+                            _popularTopics.value = it
+                            _isLoading.value = false
+                        }
                     } else {
                         _popularTopics.value = emptyList()
+                        _isLoading.value = false
                     }
                 }
             }

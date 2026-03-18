@@ -123,7 +123,7 @@ Rules:
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     input: { text: fullNarrative },
-                    voice: { languageCode: "en-IN", name: "en-IN-Neural2-B" },
+                    voice: { languageCode: "en-IN", name: "en-IN-Chirp3-HD-Zubenelgenubi" },
                     audioConfig: { audioEncoding: "MP3" },
                 }),
             }

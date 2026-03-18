@@ -1,6 +1,7 @@
 package com.example.tester2.di
 
 import com.example.tester2.BuildConfig
+import com.russhwolf.settings.Settings
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -8,6 +9,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.SettingsSessionManager
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
@@ -45,7 +47,10 @@ object SupabaseModule {
                 }
             }
             install(Postgrest)
-            install(Auth)
+            install(Auth) {
+                // Persist session across app restarts using SharedPreferences
+                sessionManager = SettingsSessionManager(Settings())
+            }
             install(Storage)
             install(Realtime)
             install(Functions)

@@ -44,6 +44,7 @@ private val AuraRed = Color(0xFFEF4444)
 @Composable
 fun RecorderScreen(
     topicId: String? = null,
+    topicTitle: String? = null,
     onRecordingSaved: () -> Unit,
     onNavigateToTopic: (String) -> Unit = {},
     viewModel: RecorderViewModel = hiltViewModel()
@@ -68,6 +69,7 @@ fun RecorderScreen(
     } else {
         RecorderContent(
             topicId = topicId,
+            topicTitle = topicTitle,
             viewModel = viewModel,
             onRecordingSaved = onRecordingSaved,
             onNavigateToTopic = onNavigateToTopic
@@ -78,15 +80,15 @@ fun RecorderScreen(
 @Composable
 fun RecorderContent(
     topicId: String?,
+    topicTitle: String?,
     viewModel: RecorderViewModel,
     onRecordingSaved: () -> Unit,
     onNavigateToTopic: (String) -> Unit
 ) {
     val isRecording by viewModel.isRecording.collectAsState()
-    val isUploading by viewModel.isUploading.collectAsState()
-    val isProcessing by viewModel.isProcessing.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()
+    val isSaved by viewModel.isSaved.collectAsState()
     val uploadError by viewModel.uploadError.collectAsState()
-    val uploadResult by viewModel.uploadResult.collectAsState()
     val amplitudeBars by viewModel.amplitudeBars.collectAsState()
     val auraColor by viewModel.auraColor.collectAsState()
     val areaName by viewModel.areaName.collectAsState()
@@ -146,28 +148,18 @@ fun RecorderContent(
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 when {
-                    uploadResult != null && uploadResult!!.classification == "community" && uploadResult!!.topicId != null ->
-                        CommunityResultCard(
-                            topicTitle = uploadResult!!.topicTitle ?: "a topic",
-                            voiceCount = uploadResult!!.voiceCount,
-                            onGoToTopic = { onNavigateToTopic(uploadResult!!.topicId!!) },
-                            onDone = onRecordingSaved
-                        )
-                    uploadResult != null && uploadResult!!.classification == "community_new" ->
-                        CommunityNewResultCard(onDone = onRecordingSaved)
-                    uploadResult != null -> PersonalResultCard(onDone = onRecordingSaved)
-                    isProcessing -> ProcessingState()
-                    isUploading -> UploadingState()
+                    isSaved -> SavedCard(topicTitle = topicTitle, onDone = onRecordingSaved)
+                    isSaving -> SavingState()
                     uploadError != null -> ErrorState(error = uploadError!!, onRetry = onRecordingSaved)
                     isRecording -> RecordingActiveState(
-                        topicId = topicId,
+                        topicTitle = topicTitle,
                         amplitudeBars = amplitudeBars,
                         auraColor = animatedAura,
                         recordingSeconds = recordingSeconds,
                         onDiscard = { viewModel.discardRecording() },
                         onFinish = { viewModel.stopRecording() }
                     )
-                    else -> RecordingIdleState(topicId = topicId, onStartRecord = { viewModel.startRecording() })
+                    else -> RecordingIdleState(topicTitle = topicTitle, onStartRecord = { viewModel.startRecording() })
                 }
             }
         }
@@ -175,8 +167,8 @@ fun RecorderContent(
 }
 
 @Composable
-private fun RecordingIdleState(topicId: String?, onStartRecord: () -> Unit) {
-    val prompts = remember {
+private fun RecordingIdleState(topicTitle: String?, onStartRecord: () -> Unit) {
+    val freeFormPrompts = remember {
         listOf(
             "What's one thing in\nyour area that secretly\ndrives you crazy?",
             "What's happening in\nyour neighborhood today?",
@@ -184,31 +176,36 @@ private fun RecordingIdleState(topicId: String?, onStartRecord: () -> Unit) {
             "Share a thought with\nthe Hive!"
         )
     }
-    val prompt = remember { prompts.random() }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier.padding(horizontal = 32.dp)
     ) {
-        if (topicId != null) {
+        if (topicTitle != null) {
             Surface(shape = RoundedCornerShape(20.dp), color = HiveGreen.copy(alpha = 0.15f)) {
                 Text(
-                    "COMMUNITY TOPIC",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp),
+                    topicTitle,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = HiveGreen,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                 )
             }
             Spacer(Modifier.height(24.dp))
+            Text(
+                "What's your take?",
+                style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, lineHeight = 36.sp),
+                color = Color(0xFF1C1C1C),
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                text = remember { freeFormPrompts.random() },
+                style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, lineHeight = 36.sp),
+                color = Color(0xFF1C1C1C),
+                textAlign = TextAlign.Center
+            )
         }
-
-        Text(
-            text = prompt,
-            style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, lineHeight = 36.sp),
-            color = Color(0xFF1C1C1C),
-            textAlign = TextAlign.Center
-        )
         Spacer(Modifier.height(48.dp))
 
         IconButton(
@@ -222,7 +219,7 @@ private fun RecordingIdleState(topicId: String?, onStartRecord: () -> Unit) {
 
 @Composable
 private fun RecordingActiveState(
-    topicId: String?,
+    topicTitle: String?,
     amplitudeBars: List<Float>,
     auraColor: Color,
     recordingSeconds: Int,
@@ -237,13 +234,13 @@ private fun RecordingActiveState(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
     ) {
-        if (topicId != null) {
+        if (topicTitle != null) {
             Surface(shape = RoundedCornerShape(20.dp), color = HiveGreen.copy(alpha = 0.15f)) {
                 Text(
-                    "COMMUNITY TOPIC",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp),
+                    topicTitle,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = HiveGreen,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                 )
             }
         } else {
@@ -327,7 +324,7 @@ private fun RecordingActiveState(
 }
 
 @Composable
-private fun UploadingState() {
+private fun SavingState() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         CircularProgressIndicator(color = HiveGreen)
         Spacer(Modifier.height(16.dp))
@@ -336,63 +333,52 @@ private fun UploadingState() {
 }
 
 @Composable
-private fun ProcessingState() {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-        CircularProgressIndicator(color = HiveGreen)
-        Spacer(Modifier.height(16.dp))
-        Text("Processing your thought...", style = MaterialTheme.typography.bodyLarge, color = HiveGreen, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(8.dp))
-        Text("Transcribing and finding your neighborhood topic", style = MaterialTheme.typography.bodySmall, color = Color.Gray, textAlign = TextAlign.Center)
+private fun SavedCard(topicTitle: String?, onDone: () -> Unit) {
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(1500)
+        onDone()
     }
-}
-
-@Composable
-private fun CommunityResultCard(topicTitle: String, voiceCount: Long, onGoToTopic: () -> Unit, onDone: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-        Text("Added to the Hive!", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
-        Spacer(Modifier.height(16.dp))
-        Surface(shape = RoundedCornerShape(16.dp), color = HiveGreen.copy(alpha = 0.1f)) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(topicTitle, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(4.dp))
-                Text("$voiceCount ${if (voiceCount == 1L) "person" else "people"} talking about this", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-            }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(32.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(HiveGreen),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
         }
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onGoToTopic, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = HiveGreen)) {
-            Text("Go to topic →")
+        Spacer(Modifier.height(20.dp))
+        if (topicTitle != null) {
+            Text(
+                "Added to the Hive!",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF1C1C1C)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Your voice has been added to \"$topicTitle\".",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                "Saved!",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF1C1C1C)
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Your thought is saved and will be processed shortly.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
         }
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onDone) { Text("Done", color = Color.Gray) }
-    }
-}
-
-@Composable
-private fun CommunityNewResultCard(onDone: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-        Text("Shared with your area", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Your voice sounds like something your neighbors can relate to. We're starting a new neighborhood topic around it.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onDone, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = HiveGreen)) {
-            Text("Done")
-        }
-    }
-}
-
-@Composable
-private fun PersonalResultCard(onDone: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-        Text("Saved to your journal", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
-        Spacer(Modifier.height(8.dp))
-        Text("Your thought is private.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onDone, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = HiveGreen)) { Text("Done") }
     }
 }
 

@@ -2,12 +2,18 @@ package com.example.tester2.ui.recorder
 
 import android.content.Context
 import android.location.Geocoder
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.example.tester2.data.local.PendingVoiceDao
+import com.example.tester2.data.local.PendingVoiceUpload
+import com.example.tester2.data.local.UploadWorker
 import com.example.tester2.data.recorder.AudioRecorder
 import com.example.tester2.data.repository.LocationRepository
-import com.example.tester2.data.repository.StorageRepository
-import com.example.tester2.data.repository.VoiceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -22,40 +28,30 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
-import android.util.Log
-
-data class UploadResult(
-    val classification: String,
-    val topicId: String?,
-    val topicTitle: String?,
-    val voiceCount: Long
-)
 
 enum class AuraColor { GREEN, ORANGE, RED }
 
 @HiltViewModel
 class RecorderViewModel @Inject constructor(
     private val audioRecorder: AudioRecorder,
-    private val storageRepository: StorageRepository,
-    private val voiceRepository: VoiceRepository,
     private val locationRepository: LocationRepository,
+    private val pendingVoiceDao: PendingVoiceDao,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording = _isRecording.asStateFlow()
 
-    private val _isUploading = MutableStateFlow(false)
-    val isUploading = _isUploading.asStateFlow()
+    // true while saving the file to the local queue (fast, sub-second)
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving = _isSaving.asStateFlow()
 
-    private val _isProcessing = MutableStateFlow(false)
-    val isProcessing = _isProcessing.asStateFlow()
+    // true once the file is safely in the local queue — triggers the saved card
+    private val _isSaved = MutableStateFlow(false)
+    val isSaved = _isSaved.asStateFlow()
 
     private val _uploadError = MutableStateFlow<String?>(null)
     val uploadError = _uploadError.asStateFlow()
-
-    private val _uploadResult = MutableStateFlow<UploadResult?>(null)
-    val uploadResult = _uploadResult.asStateFlow()
 
     private val _recordingSeconds = MutableStateFlow(0)
     val recordingSeconds = _recordingSeconds.asStateFlow()
@@ -103,7 +99,7 @@ class RecorderViewModel @Inject constructor(
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val file = File(context.cacheDir, "HIV_REC_$timestamp.m4a")
         currentFile = file
-        _uploadResult.value = null
+        _isSaved.value = false
         _uploadError.value = null
         _recordingSeconds.value = 0
         _auraColor.value = AuraColor.GREEN
@@ -154,7 +150,7 @@ class RecorderViewModel @Inject constructor(
         try {
             audioRecorder.stop()
             _isRecording.value = false
-            currentFile?.let { uploadAudio(it) }
+            currentFile?.let { saveToQueue(it) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -173,42 +169,35 @@ class RecorderViewModel @Inject constructor(
         currentFile = null
     }
 
-    private fun uploadAudio(file: File) {
+    private fun saveToQueue(file: File) {
         viewModelScope.launch {
-            _isUploading.value = true
-
-            val storageResult = storageRepository.uploadAudio(file)
-            storageResult.onFailure { e ->
-                _isUploading.value = false
-                _uploadError.value = "Upload failed: ${e.message}"
-                return@launch
-            }
-
-            val path = storageResult.getOrThrow()
-            val dbResult = voiceRepository.createVoiceNote(path, currentTopicId)
-            _isUploading.value = false
-
-            dbResult.onFailure { e ->
-                _uploadError.value = "Save failed: ${e.message}"
-                return@launch
-            }
-
-            _isProcessing.value = true
-            val location = locationRepository.getLastLocation()
-            val transcribeResult = voiceRepository.transcribeAudio(path, location?.latitude, location?.longitude)
-            _isProcessing.value = false
-
-            transcribeResult.onSuccess { result ->
-                _uploadResult.value = UploadResult(
-                    classification = result.classification,
-                    topicId = result.topicId,
-                    topicTitle = result.topicTitle,
-                    voiceCount = result.voiceCount
+            _isSaving.value = true
+            try {
+                val location = locationRepository.getLastLocation()
+                val pending = PendingVoiceUpload(
+                    filePath = file.absolutePath,
+                    topicId = currentTopicId,
+                    lat = location?.latitude,
+                    lng = location?.longitude
                 )
-            }
-            transcribeResult.onFailure { e ->
-                Log.e("RecorderViewModel", "Transcription failed: ${e.message}", e)
-                _uploadError.value = "Transcription failed: ${e.message}"
+                pendingVoiceDao.insert(pending)
+
+                val request = OneTimeWorkRequestBuilder<UploadWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+                WorkManager.getInstance(context).enqueue(request)
+
+                _isSaved.value = true
+                Log.d("RecorderViewModel", "Queued upload ${pending.id}")
+            } catch (e: Exception) {
+                Log.e("RecorderViewModel", "Failed to queue upload: ${e.message}", e)
+                _uploadError.value = "Failed to save: ${e.message}"
+            } finally {
+                _isSaving.value = false
             }
         }
     }

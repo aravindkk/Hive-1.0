@@ -1,5 +1,10 @@
 package com.example.tester2.ui.timeline
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +51,7 @@ fun TimelineScreen(
     viewModel: TimelineViewModel = hiltViewModel()
 ) {
     val voiceNotes by viewModel.voiceNotes.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val playingUrl by viewModel.playingUrl.collectAsState()
     val areaName by viewModel.areaName.collectAsState()
     val isWeeklyReflectionPlaying by viewModel.isWeeklyReflectionPlaying.collectAsState()
@@ -70,14 +78,18 @@ fun TimelineScreen(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(4.dp))
-            Text(
-                text = areaName,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold
-                ),
-                color = TextDark
-            )
+            if (isLoading) {
+                ShimmerBox(width = 100.dp, height = 14.dp, shape = RoundedCornerShape(4.dp))
+            } else {
+                Text(
+                    text = areaName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = TextDark
+                )
+            }
             Spacer(Modifier.weight(1f))
             Icon(
                 imageVector = Icons.Default.Settings,
@@ -87,8 +99,9 @@ fun TimelineScreen(
             )
         }
 
-        if (voiceNotes.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        when {
+            isLoading -> TimelineShimmer()
+            voiceNotes.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     "No thoughts yet.\nStart recording!",
                     style = MaterialTheme.typography.bodyLarge,
@@ -96,12 +109,10 @@ fun TimelineScreen(
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
-        } else {
-            LazyColumn(
+            else -> LazyColumn(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Weekly Reflection heading
                 item {
                     Text(
                         "Weekly Reflection",
@@ -114,7 +125,6 @@ fun TimelineScreen(
                     )
                 }
 
-                // Weekly Reflection card
                 item {
                     WeeklyReflectionCard(
                         notes = voiceNotes,
@@ -123,7 +133,6 @@ fun TimelineScreen(
                     )
                 }
 
-                // Voice History header
                 item {
                     Row(
                         modifier = Modifier
@@ -155,6 +164,152 @@ fun TimelineScreen(
                         onPlayClick = { viewModel.toggleAudio(note) },
                         onTopicClick = onTopicClick
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun shimmerBrush(): Brush {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
+        label = "shimmer_translate"
+    )
+    return Brush.linearGradient(
+        colors = listOf(Color(0xFFE8E8E8), Color(0xFFF5F5F5), Color(0xFFE8E8E8)),
+        start = Offset(translateAnim - 300f, 0f),
+        end = Offset(translateAnim, 0f)
+    )
+}
+
+@Composable
+private fun ShimmerBox(
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(6.dp)
+) {
+    Box(
+        modifier = Modifier
+            .width(width)
+            .height(height)
+            .clip(shape)
+            .background(shimmerBrush())
+    )
+}
+
+@Composable
+private fun TimelineShimmer() {
+    val brush = shimmerBrush()
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Weekly Reflection heading shimmer
+        item {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 8.dp)
+                    .width(180.dp)
+                    .height(24.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(brush)
+            )
+        }
+
+        // Weekly Reflection card shimmer
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = CardWhite,
+                shadowElevation = 2.dp
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Box(Modifier.width(120.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                            Spacer(Modifier.height(8.dp))
+                            Box(Modifier.fillMaxWidth(0.75f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                        }
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(50)).background(brush))
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(64.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(0.4f, 0.7f, 0.5f, 1f, 0.6f, 0.3f, 0.8f).forEach { frac ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height((frac * 56).dp)
+                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    .background(brush)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Voice History header shimmer
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.width(140.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.width(80.dp).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+            }
+        }
+
+        // 3 VoiceNote card skeletons
+        items(3) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = CardWhite,
+                shadowElevation = 1.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.width(100.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                        Spacer(Modifier.weight(1f))
+                        Box(Modifier.size(20.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Box(Modifier.fillMaxWidth(0.6f).height(14.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    Spacer(Modifier.height(4.dp))
+                    Box(Modifier.fillMaxWidth(0.8f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(32.dp).clip(CircleShape).background(brush))
+                        Spacer(Modifier.width(10.dp))
+                        Row(
+                            modifier = Modifier.weight(1f).height(28.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            repeat(24) {
+                                val h = (0.2f + (it % 5) * 0.15f)
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height((h * 24).dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(brush)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

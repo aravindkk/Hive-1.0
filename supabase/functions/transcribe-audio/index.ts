@@ -13,7 +13,7 @@ serve(async (req) => {
     }
 
     try {
-        const { storage_path, lat, lng } = await req.json();
+        const { storage_path, lat, lng, topic_id: existingTopicId } = await req.json();
 
         if (!storage_path) throw new Error("Missing storage_path");
 
@@ -50,21 +50,36 @@ serve(async (req) => {
         const transcript = transcribeResult.response.text().trim();
         console.log("Transcription complete:", transcript.substring(0, 100));
 
-        // 4. Fetch active topics for classification
-        const { data: topics } = await supabase
-            .from("topics")
-            .select("id, title")
-            .eq("active", true)
-            .limit(15);
-
-        // 5. Classify using Gemini
+        // 4. Classification — skip entirely if the user is adding to an existing topic
         let classification = "personal";
         let matchedTopicId: string | null = null;
         let matchedTopicTitle: string | null = null;
 
-        if (topics && topics.length > 0) {
-            const topicList = topics.map((t: any) => `ID: ${t.id}, Title: "${t.title}"`).join("\n");
-            const classPrompt = `You are classifying a voice note from a neighborhood social app.
+        if (existingTopicId) {
+            // User explicitly chose this topic — trust their intent, no LLM classification needed
+            const { data: topic } = await supabase
+                .from("topics")
+                .select("id, title")
+                .eq("id", existingTopicId)
+                .single();
+
+            if (topic) {
+                matchedTopicId = topic.id;
+                matchedTopicTitle = topic.title;
+                classification = "community";
+                console.log(`Skipping classification — adding to existing topic: ${matchedTopicTitle}`);
+            }
+        } else {
+            // 5. No topic context — run full classification pipeline
+            const { data: topics } = await supabase
+                .from("topics")
+                .select("id, title")
+                .eq("active", true)
+                .limit(15);
+
+            if (topics && topics.length > 0) {
+                const topicList = topics.map((t: any) => `ID: ${t.id}, Title: "${t.title}"`).join("\n");
+                const classPrompt = `You are classifying a voice note from a neighborhood social app.
 
 Transcript: "${transcript}"
 
@@ -80,37 +95,34 @@ Rules:
 Respond with ONLY valid JSON, no markdown:
 {"classification": "community" or "community_new" or "personal", "topic_id": "<exact uuid from list above or null>"}`;
 
-            try {
-                const classResult = await model.generateContent(classPrompt);
-                const classText = classResult.response.text().trim()
-                    .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-                const parsed = JSON.parse(classText);
-                classification = parsed.classification || "personal";
-                matchedTopicId = parsed.topic_id || null;
+                try {
+                    const classResult = await model.generateContent(classPrompt);
+                    const classText = classResult.response.text().trim()
+                        .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+                    const parsed = JSON.parse(classText);
+                    classification = parsed.classification || "personal";
+                    matchedTopicId = parsed.topic_id || null;
 
-                // Validate the topic_id is actually in our list
-                if (matchedTopicId) {
-                    const match = topics.find((t: any) => t.id === matchedTopicId);
-                    if (match) {
-                        matchedTopicTitle = match.title;
-                    } else {
-                        matchedTopicId = null;
+                    if (matchedTopicId) {
+                        const match = topics.find((t: any) => t.id === matchedTopicId);
+                        if (match) {
+                            matchedTopicTitle = match.title;
+                        } else {
+                            matchedTopicId = null;
+                        }
                     }
+                    if (classification === "community" && !matchedTopicId) {
+                        classification = "community_new";
+                    }
+                } catch (e) {
+                    console.error("Classification parse failed, defaulting to personal");
+                    classification = "personal";
                 }
-                if (classification === "community" && !matchedTopicId) {
-                    classification = "community_new";
-                }
-            } catch (e) {
-                console.error("Classification parse failed, defaulting to personal");
-                classification = "personal";
             }
-        }
 
-        console.log(`Classification: ${classification}, topic_id: ${matchedTopicId}`);
-
-        // 6. If community_new, generate a broad topic title and create the topic
-        if (classification === "community_new" && lat != null && lng != null) {
-            const titlePrompt = `Generate a short, broad community topic title for a neighborhood app based on this voice note.
+            // 6. If community_new, generate a broad topic title and create the topic
+            if (classification === "community_new" && lat != null && lng != null) {
+                const titlePrompt = `Generate a short, broad community topic title for a neighborhood app based on this voice note.
 
 Transcript: "${transcript}"
 
@@ -121,35 +133,37 @@ Rules:
 - Max 5 words total
 - Respond with ONLY the topic title, nothing else`;
 
-            try {
-                const titleResult = await model.generateContent(titlePrompt);
-                const generatedTitle = titleResult.response.text().trim().replace(/^["']|["']$/g, "");
-                console.log(`Generated topic title: ${generatedTitle}`);
+                try {
+                    const titleResult = await model.generateContent(titlePrompt);
+                    const generatedTitle = titleResult.response.text().trim().replace(/^["']|["']$/g, "");
+                    console.log(`Generated topic title: ${generatedTitle}`);
 
-                // Insert new topic using WKT geography format (lng lat order for PostGIS)
-                const { data: newTopic, error: insertError } = await supabase
-                    .from("topics")
-                    .insert({
-                        title: generatedTitle,
-                        location: `SRID=4326;POINT(${lng} ${lat})`,
-                        radius: 500,
-                        active: true,
-                    })
-                    .select("id")
-                    .single();
+                    const { data: newTopic, error: insertError } = await supabase
+                        .from("topics")
+                        .insert({
+                            title: generatedTitle,
+                            location: `SRID=4326;POINT(${lng} ${lat})`,
+                            radius: 500,
+                            active: true,
+                        })
+                        .select("id")
+                        .single();
 
-                if (!insertError && newTopic) {
-                    matchedTopicId = newTopic.id;
-                    matchedTopicTitle = generatedTitle;
-                    classification = "community";
-                    console.log(`Created new topic: ${generatedTitle} (${matchedTopicId})`);
-                } else {
-                    console.error("Failed to insert topic:", insertError?.message);
+                    if (!insertError && newTopic) {
+                        matchedTopicId = newTopic.id;
+                        matchedTopicTitle = generatedTitle;
+                        classification = "community";
+                        console.log(`Created new topic: ${generatedTitle} (${matchedTopicId})`);
+                    } else {
+                        console.error("Failed to insert topic:", insertError?.message);
+                    }
+                } catch (e) {
+                    console.error("Topic creation failed:", e);
                 }
-            } catch (e) {
-                console.error("Topic creation failed:", e);
             }
         }
+
+        console.log(`Classification: ${classification}, topic_id: ${matchedTopicId}`);
 
         // 7. Update voices row
         const updatePayload: any = { transcript, classification };
