@@ -22,7 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.example.tester2.ui.VoiceDetailSheet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +60,7 @@ fun TimelineScreen(
     val playingUrl by viewModel.playingUrl.collectAsState()
     val areaName by viewModel.areaName.collectAsState()
     val isWeeklyReflectionPlaying by viewModel.isWeeklyReflectionPlaying.collectAsState()
+    var selectedVoice by remember { mutableStateOf<com.example.tester2.data.model.VoiceNote?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -158,11 +162,24 @@ fun TimelineScreen(
                         note = note,
                         isPlaying = playingUrl == viewModel.getAudioUrl(note),
                         onPlayClick = { viewModel.toggleAudio(note) },
-                        onTopicClick = onTopicClick
+                        onTopicClick = onTopicClick,
+                        onCardClick = { selectedVoice = note }
                     )
                 }
             }
         }
+    }
+
+    selectedVoice?.let { voice ->
+        VoiceDetailSheet(
+            voice = voice,
+            isPlaying = playingUrl == viewModel.getAudioUrl(voice),
+            onPlayClick = { viewModel.toggleAudio(voice) },
+            onDismiss = {
+                viewModel.stopAudio()
+                selectedVoice = null
+            }
+        )
     }
 }
 
@@ -429,7 +446,8 @@ fun VoiceNoteCard(
     note: VoiceNote,
     isPlaying: Boolean,
     onPlayClick: () -> Unit,
-    onTopicClick: (String) -> Unit
+    onTopicClick: (String) -> Unit,
+    onCardClick: () -> Unit = {}
 ) {
     val waveformHeights = remember(note.id) {
         val seed = note.id.hashCode()
@@ -442,7 +460,9 @@ fun VoiceNoteCard(
         ?: "Voice note"
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() },
         shape = RoundedCornerShape(16.dp),
         color = CardWhite,
         shadowElevation = 1.dp

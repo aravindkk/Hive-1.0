@@ -97,7 +97,11 @@ class TimelineViewModel @Inject constructor(
     fun getAudioUrl(voiceNote: VoiceNote): String {
         return voiceRepository.getAudioUrl(voiceNote.storagePath)
     }
-    
+
+    fun stopAudio() {
+        audioPlayer.stop()
+    }
+
     override fun onCleared() {
         super.onCleared()
         audioPlayer.stop()

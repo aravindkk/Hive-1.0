@@ -95,6 +95,10 @@ class TopicDeepDiveViewModel @Inject constructor(
 
     fun getSummaryAudioUrl(audioPath: String) = voiceRepository.getAudioUrl(audioPath)
 
+    fun stopAudio() {
+        audioPlayer.stop()
+    }
+
     override fun onCleared() {
         super.onCleared()
         audioPlayer.stop()

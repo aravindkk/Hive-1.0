@@ -176,8 +176,10 @@ private fun RecordingIdleState(topicTitle: String?, onStartRecord: () -> Unit) {
         listOf(
             "What's one thing in\nyour area that secretly\ndrives you crazy?",
             "What's happening in\nyour neighborhood today?",
-            "What's on your mind\nabout your community?",
-            "Share a thought with\nthe Hive!"
+            "What's on your mind\nabout your neighborhood?",
+            "Share a thought with\nthe Hive!",
+            "What's top of mind\nfor you today?",
+            "What's something nice\nabout your neighborhood?"
         )
     }
 

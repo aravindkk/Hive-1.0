@@ -3,6 +3,7 @@ package com.example.tester2.ui.hive
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.tester2.ui.VoiceDetailSheet
 import com.example.tester2.data.model.SummarySegment
 import com.example.tester2.data.model.TopicSummary
 import com.example.tester2.data.model.VoiceNote
@@ -63,6 +65,7 @@ fun TopicDeepDiveScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val playingUrl by viewModel.playingUrl.collectAsState()
     val currentPositionMs by viewModel.currentPositionMs.collectAsState()
+    var selectedVoice by remember { mutableStateOf<com.example.tester2.data.model.VoiceNote?>(null) }
 
     Column(
         modifier = Modifier
@@ -162,7 +165,8 @@ fun TopicDeepDiveScreen(
                         CommunityVoiceCard(
                             voice = voice,
                             isPlaying = playingUrl == audioUrl,
-                            onPlayToggle = { viewModel.toggleAudio(audioUrl) }
+                            onPlayToggle = { viewModel.toggleAudio(audioUrl) },
+                            onCardClick = { selectedVoice = voice }
                         )
                     }
                 } else {
@@ -202,6 +206,19 @@ fun TopicDeepDiveScreen(
                 color = TextDark
             )
         }
+    }
+
+    selectedVoice?.let { voice ->
+        val audioUrl = viewModel.getAudioUrl(voice.storagePath)
+        VoiceDetailSheet(
+            voice = voice,
+            isPlaying = playingUrl == audioUrl,
+            onPlayClick = { viewModel.toggleAudio(audioUrl) },
+            onDismiss = {
+                viewModel.stopAudio()
+                selectedVoice = null
+            }
+        )
     }
 }
 
@@ -537,7 +554,8 @@ private fun LyricsSegmentRow(
 private fun CommunityVoiceCard(
     voice: VoiceNote,
     isPlaying: Boolean,
-    onPlayToggle: () -> Unit
+    onPlayToggle: () -> Unit,
+    onCardClick: () -> Unit = {}
 ) {
     val waveformHeights = remember(voice.id) {
         val seed = voice.id.hashCode()
@@ -555,7 +573,9 @@ private fun CommunityVoiceCard(
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() },
         shape = RoundedCornerShape(16.dp),
         color = Color.White,
         shadowElevation = 1.dp
