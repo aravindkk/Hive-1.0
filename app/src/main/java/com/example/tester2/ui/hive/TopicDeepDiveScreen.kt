@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -31,8 +34,11 @@ import com.example.tester2.data.model.SummarySegment
 import com.example.tester2.data.model.TopicSummary
 import com.example.tester2.data.model.VoiceNote
 import com.example.tester2.ui.theme.HiveGreen
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+
+private val IST = ZoneId.of("Asia/Kolkata")
 
 private val DeepDiveBg = Color(0xFFF9F9F4)
 private val TextDark = Color(0xFF1C1C1C)
@@ -303,6 +309,16 @@ private fun AiSummarySection(
         summary.segments.indexOfLast { it.startMs <= currentPositionMs }.coerceAtLeast(0)
     } else -1
 
+    val segmentListState = rememberLazyListState()
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp
+
+    // Auto-scroll to active segment while playing
+    LaunchedEffect(activeSegmentIndex) {
+        if (isSummaryPlaying && activeSegmentIndex > 0) {
+            segmentListState.animateScrollToItem(activeSegmentIndex)
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -429,8 +445,12 @@ private fun AiSummarySection(
 
                     if (summary.segments.isNotEmpty()) {
                         Spacer(Modifier.height(16.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            summary.segments.forEachIndexed { index, segment ->
+                        LazyColumn(
+                            state = segmentListState,
+                            modifier = Modifier.heightIn(max = (screenHeightDp * 0.3f).dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            itemsIndexed(summary.segments) { index, segment ->
                                 LyricsSegmentRow(
                                     segment = segment,
                                     isActive = index == activeSegmentIndex,
@@ -626,8 +646,8 @@ private fun initialsFrom(name: String): String {
 
 private fun formatTimestamp(createdAt: String): String {
     return try {
-        val zdt = ZonedDateTime.parse(createdAt)
-        val now = ZonedDateTime.now()
+        val zdt = ZonedDateTime.parse(createdAt).withZoneSameInstant(IST)
+        val now = ZonedDateTime.now(IST)
         val minutesAgo = java.time.Duration.between(zdt, now).toMinutes()
         when {
             minutesAgo < 1 -> "just now"

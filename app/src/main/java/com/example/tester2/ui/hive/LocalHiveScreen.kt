@@ -35,10 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.tester2.data.model.Topic
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.math.cos
 import kotlin.math.sin
+
+private val IST = ZoneId.of("Asia/Kolkata")
 
 // Pastel bubble colors matching the design
 private val BubbleTeal   = Color(0xFFD1F2DF)
@@ -575,8 +578,8 @@ private fun TopicListShimmer() {
 
 private fun relativeTime(createdAt: String): String {
     return try {
-        val then = ZonedDateTime.parse(createdAt)
-        val now = ZonedDateTime.now()
+        val then = ZonedDateTime.parse(createdAt).withZoneSameInstant(IST)
+        val now = ZonedDateTime.now(IST)
         val minutes = ChronoUnit.MINUTES.between(then, now)
         when {
             minutes < 60 -> "${minutes}m ago"

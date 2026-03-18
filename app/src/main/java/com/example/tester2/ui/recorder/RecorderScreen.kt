@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.tester2.data.model.TranscriptionResult
 import com.example.tester2.ui.theme.HiveGreen
 
 private val HiveCreamBg = Color(0xFFF9F9F4)
@@ -92,6 +93,7 @@ fun RecorderContent(
     val auraColor by viewModel.auraColor.collectAsState()
     val areaName by viewModel.areaName.collectAsState()
     val recordingSeconds by viewModel.recordingSeconds.collectAsState()
+    val transcriptionResult by viewModel.transcriptionResult.collectAsState()
 
     // Animate the aura color smoothly between states
     val targetAuraColor = when (auraColor) {
@@ -146,7 +148,11 @@ fun RecorderContent(
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 when {
-                    isSaved -> SavedCard(topicTitle = topicTitle, onDone = onRecordingSaved)
+                    isSaved -> SavedCard(
+                        presetTopicTitle = topicTitle,
+                        transcriptionResult = transcriptionResult,
+                        onDone = onRecordingSaved
+                    )
                     isSaving -> SavingState()
                     uploadError != null -> ErrorState(error = uploadError!!, onRetry = onRecordingSaved)
                     isRecording -> RecordingActiveState(
@@ -331,11 +337,20 @@ private fun SavingState() {
 }
 
 @Composable
-private fun SavedCard(topicTitle: String?, onDone: () -> Unit) {
+private fun SavedCard(
+    presetTopicTitle: String?,
+    transcriptionResult: TranscriptionResult?,
+    onDone: () -> Unit
+) {
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(1500)
+        kotlinx.coroutines.delay(2500)
         onDone()
     }
+
+    // Determine display: preset topic (from topic detail) > transcription result > queued fallback
+    val resolvedTopicTitle = presetTopicTitle ?: transcriptionResult?.topicTitle
+    val isPrivate = transcriptionResult != null && resolvedTopicTitle == null
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(32.dp)
@@ -350,32 +365,49 @@ private fun SavedCard(topicTitle: String?, onDone: () -> Unit) {
             Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
         }
         Spacer(Modifier.height(20.dp))
-        if (topicTitle != null) {
-            Text(
-                "Added to the Hive!",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = Color(0xFF1C1C1C)
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Your voice has been added to \"$topicTitle\".",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
-                textAlign = TextAlign.Center
-            )
-        } else {
-            Text(
-                "Saved!",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = Color(0xFF1C1C1C)
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Your thought is saved and will be processed shortly.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
-                textAlign = TextAlign.Center
-            )
+        when {
+            resolvedTopicTitle != null -> {
+                Text(
+                    "Added to the Hive!",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFF1C1C1C)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Your voice has been added to \"$resolvedTopicTitle\".",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
+            isPrivate -> {
+                Text(
+                    "Saved privately",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFF1C1C1C)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "This thought has been saved to your personal journal.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
+            else -> {
+                Text(
+                    "Saved!",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFF1C1C1C)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Your thought is saved and will be processed shortly.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

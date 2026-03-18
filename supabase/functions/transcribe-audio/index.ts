@@ -13,7 +13,7 @@ serve(async (req) => {
     }
 
     try {
-        const { storage_path, lat, lng, topic_id: existingTopicId } = await req.json();
+        const { storage_path, lat, lng, area_name: areaName, topic_id: existingTopicId } = await req.json();
 
         if (!storage_path) throw new Error("Missing storage_path");
 
@@ -50,7 +50,11 @@ serve(async (req) => {
         const transcript = transcribeResult.response.text().trim();
         console.log("Transcription complete:", transcript.substring(0, 100));
 
-        // 4. Classification — skip entirely if the user is adding to an existing topic
+        // 3b. Location extraction + classification run in parallel (both only need the transcript)
+        let effectiveLat = lat;
+        let effectiveLng = lng;
+        let effectiveAreaName = areaName ?? null;
+
         let classification = "personal";
         let matchedTopicId: string | null = null;
         let matchedTopicTitle: string | null = null;
@@ -70,16 +74,22 @@ serve(async (req) => {
                 console.log(`Skipping classification — adding to existing topic: ${matchedTopicTitle}`);
             }
         } else {
-            // 5. No topic context — run full classification pipeline
+            // Fetch topics and run location extraction + classification in parallel
             const { data: topics } = await supabase
                 .from("topics")
                 .select("id, title")
                 .eq("active", true)
                 .limit(15);
 
-            if (topics && topics.length > 0) {
-                const topicList = topics.map((t: any) => `ID: ${t.id}, Title: "${t.title}"`).join("\n");
-                const classPrompt = `You are classifying a voice note from a neighborhood social app.
+            const topicList = topics && topics.length > 0
+                ? topics.map((t: any) => `ID: ${t.id}, Title: "${t.title}"`).join("\n")
+                : "";
+
+            const locationPromise = model.generateContent(
+                `Extract the neighborhood or area name mentioned in this transcript. Return ONLY the area name (e.g. "Indiranagar", "HSR Layout"), or "none" if no specific area is mentioned.\n\nTranscript: "${transcript}"`
+            );
+
+            const classPromise = topicList ? model.generateContent(`You are classifying a voice note from a neighborhood social app.
 
 Transcript: "${transcript}"
 
@@ -93,10 +103,35 @@ Rules:
 - If it's personal (work stress, relationships, feelings, private thoughts), return "personal"
 
 Respond with ONLY valid JSON, no markdown:
-{"classification": "community" or "community_new" or "personal", "topic_id": "<exact uuid from list above or null>"}`;
+{"classification": "community" or "community_new" or "personal", "topic_id": "<exact uuid from list above or null>"}`) : Promise.resolve(null);
 
+            const [locationResult, classResult] = await Promise.all([locationPromise, classPromise]);
+
+            // Process location extraction result
+            try {
+                const mentionedLocation = locationResult.response.text().trim().replace(/^["']|["']$/g, "");
+                if (mentionedLocation.toLowerCase() !== "none" && mentionedLocation.length > 0) {
+                    console.log(`Location mentioned in transcript: ${mentionedLocation}`);
+                    const query = encodeURIComponent(`${mentionedLocation}, Bangalore, India`);
+                    const geoResponse = await fetch(
+                        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+                        { headers: { "User-Agent": "HiveApp/1.0 (neighborhood social app)" } }
+                    );
+                    const geoData = await geoResponse.json();
+                    if (geoData && geoData.length > 0) {
+                        effectiveLat = parseFloat(geoData[0].lat);
+                        effectiveLng = parseFloat(geoData[0].lon);
+                        effectiveAreaName = mentionedLocation;
+                        console.log(`Resolved ${mentionedLocation} → (${effectiveLat}, ${effectiveLng})`);
+                    }
+                }
+            } catch (e) {
+                console.error("Location extraction/geocoding failed, using GPS coords:", e);
+            }
+
+            // Process classification result
+            if (classResult && topics && topics.length > 0) {
                 try {
-                    const classResult = await model.generateContent(classPrompt);
                     const classText = classResult.response.text().trim()
                         .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
                     const parsed = JSON.parse(classText);
@@ -121,7 +156,11 @@ Respond with ONLY valid JSON, no markdown:
             }
 
             // 6. If community_new, generate a broad topic title and create the topic
-            if (classification === "community_new" && lat != null && lng != null) {
+            if (classification === "community_new" && effectiveLat != null && effectiveLng != null) {
+                const locationPrefix = effectiveAreaName && effectiveAreaName.trim().length > 0
+                    ? `- Always prefix the title with "${effectiveAreaName}". Example: "${effectiveAreaName} Food & Restaurants"`
+                    : `- Omit a location prefix.`;
+
                 const titlePrompt = `Generate a short, broad community topic title for a neighborhood app based on this voice note.
 
 Transcript: "${transcript}"
@@ -129,7 +168,7 @@ Transcript: "${transcript}"
 Rules:
 - BROAD enough that 20+ different people in the same area could add their own experiences (e.g., "Food & Restaurants", "Traffic & Commute", "Water & Power Supply")
 - NOT specific to one incident or place (e.g., NOT "New cafe on 12th Main" or "Pothole near forum mall")
-- If the transcript clearly mentions a neighborhood name (e.g., Jayanagar, Koramangala, HSR Layout), prefix the title with it: "Jayanagar Food & Restaurants"
+${locationPrefix}
 - Max 5 words total
 - Respond with ONLY the topic title, nothing else`;
 
@@ -142,7 +181,7 @@ Rules:
                         .from("topics")
                         .insert({
                             title: generatedTitle,
-                            location: `SRID=4326;POINT(${lng} ${lat})`,
+                            location: `SRID=4326;POINT(${effectiveLng} ${effectiveLat})`,
                             radius: 500,
                             active: true,
                         })

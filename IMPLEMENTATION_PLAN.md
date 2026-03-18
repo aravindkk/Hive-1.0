@@ -75,6 +75,8 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 **4. Topics table schema** ✅ DONE (via RPCs)
 - `voice_count` computed via COUNT JOIN in `get_popular_topics` and `get_topic_by_id` RPCs
 - No stored counter column — reflects reality automatically
+- `created_at timestamptz` now returned by both RPCs (migration `20260318_get_popular_topics_add_created_at.sql` applied)
+- `get_topic_by_id` parameter renamed from `topic_id` → `p_topic_id` to avoid PostgreSQL column-name collision with the LEFT JOIN (migration `20260318_fix_get_topic_by_id.sql` applied)
 
 **5. Streaming transcription** ⏳ Deferred Phase 2
 - Current: batch transcription via `transcribe-audio` edge function (10–20s latency, acceptable)
@@ -134,16 +136,22 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - Real amplitude waveform from `MediaRecorder.maxAmplitude` sampled every 50ms (30 bars)
 - Aura: 0–99s green → 100–109s orange → 110s+ red (`animateColorAsState` 1500ms tween)
 - Auto-stop at 120s
-- Discard + Finish buttons; SavedCard auto-dismisses after 1.5s
+- Discard + Finish buttons; SavedCard auto-dismisses after 2500ms
 - Topic title shown as pill when recording into a specific topic
 - "Add your voice" from topic skips classification entirely (passes `topic_id` through full chain)
+- **SavedCard three states:**
+  - `transcriptionResult.topicTitle != null` → "Added to the Hive! · {topicTitle}"
+  - `transcriptionResult != null` but no topic title → "Saved privately" (personal classification)
+  - No result (offline queue) → "Saved! Will be processed shortly"
 
 **14. RecorderViewModel**
 - `AuraColor` enum + StateFlow derived from `recordingSeconds`
 - `_amplitudeBars: List<Float>(30)` sampled every 50ms, normalized 0–1
-- Location injected via `LocationRepository.getLastLocation()` → passes `lat`/`lng` to edge function
-- `saveToQueue()`: inserts `PendingVoiceUpload` to Room → enqueues WorkManager job
-- `isSaving` / `isSaved` StateFlows (replaces older `isUploading`/`uploadResult`)
+- Injects `StorageRepository` + `VoiceRepository` (direct upload path)
+- `_transcriptionResult: MutableStateFlow<TranscriptionResult?>` exposed as StateFlow for SavedCard
+- `saveToQueue()`: direct upload → `createVoiceNote` → `transcribeAudio` (awaited, result captured); WorkManager only as offline fallback when upload fails
+- Passes `_areaName.value.takeIf { it != "Your area" }` as `area_name` to `transcribeAudio`
+- `isSaving` / `isSaved` StateFlows; `isSaved` set true after upload+transcription completes
 
 ---
 
@@ -168,19 +176,20 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 
 **17. LocalHiveScreen**
 - Tab 0 (Trending): bubble view, radial packing by `voiceCount`, pastel colors, category icons
-- Tab 1 (New): scrollable list sorted by `createdAt` DESC, relative timestamps ("2d ago")
+- Tab 1 (New): scrollable list sorted by `createdAt` DESC (`.take(19)` UTC prefix comparison for reliability), relative timestamps ("2d ago")
 - Tab 2 (My Topics): scrollable list filtered to user's contributed topics, "Contributed" badge
 - Bubble canvas: `BoxWithConstraints` for viewport size → correct center-scroll on open
 - Auto-scrolls to center of canvas (not corner) using `(canvasWidth - viewportWidth) / 2`
 - Horizontal + vertical scroll; no topic limit (all topics shown)
 - Shimmer: BubbleShimmer for tab 0, TopicListShimmer (6 card skeletons) for tabs 1 & 2
 - Mini-player bar when audio playing
+- **All timestamps displayed in IST (Asia/Kolkata)** via `ZonedDateTime.withZoneSameInstant(IST)`
 
 **18. LocalHiveViewModel**
 - Tab data via `loadTopicsForTab(index)`:
   - Tab 0: `getPopularTopics()` RPC (voice_count DESC)
-  - Tab 1: same RPC, client-side sort by `createdAt` DESC
-  - Tab 2: RPC result filtered to topic IDs from user's voices
+  - Tab 1: same RPC, client-side sort by `createdAt.take(19)` DESC (works because `created_at` now returned by RPC)
+  - Tab 2: `getMyTopics()` — queries user's voices, decodes as `List<VoiceNote>`, extracts `.topicId` with Kotlin `.mapNotNull`; no broken DB-level null filter
 - `isLoading` reset to true on tab switch, false on first emission
 
 ---
@@ -195,6 +204,9 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - "Add your voice" → RecorderScreen with `topicId` + `topicTitle` pre-set; skips classification
 - Shimmer while `isLoading = true`
 - Refresh icon to manually re-trigger summary
+- **AI summary segment area capped at 30% screen height** (`heightIn(max = (screenHeightDp * 0.3f).dp)`) using `LazyColumn` + `LocalConfiguration`
+- **Spotify-style auto-scroll**: `LaunchedEffect(activeSegmentIndex)` calls `segmentListState.animateScrollToItem(activeSegmentIndex)` when playing and index > 0
+- **All timestamps displayed in IST (Asia/Kolkata)**
 
 **20. TopicDeepDiveViewModel**
 - `loadForTopic(id)` guarded with `loadedTopicId` check (fixes Hilt ViewModel reuse / "always Bellandur" bug)
@@ -210,6 +222,8 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - `isLoggedIn` checked before `hasSeenSplash` in `startDest` logic
 - Permission dialog (RECORD_AUDIO + LOCATION) shown once on first install
 - Location settings check **removed** from startup (was causing freeze by firing two system dialogs simultaneously); permissions work fine without forcing GPS mode on
+- **Android 12+ system splash suppressed**: `values-v31/themes.xml` sets `windowSplashScreenAnimatedIcon = @drawable/splash_icon` (solid cream shape — invisible against cream background) and `windowSplashScreenBackground = #F9F9F4`
+- **Full-screen splash image on all API levels**: `themes.xml` sets `android:windowBackground = @drawable/splash_screen_bg` (layer-list bitmap of `splash_background.png` with `gravity="fill"`)
 
 ---
 
@@ -223,6 +237,20 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 
 ---
 
+### 1H2. Edge Function — transcribe-audio ✅ DONE
+
+- Accepts `{ storage_path, lat, lng, area_name, topic_id }` from Android client
+- **Transcription + location extraction + classification run in parallel** (`Promise.all`): saves ~2–3s vs sequential Gemini calls
+- **Mentioned-location extraction**: Gemini extracts neighborhood name from transcript → Nominatim geocodes it to lat/lng (`https://nominatim.openstreetmap.org/search?q={name}, Bangalore, India`) → `effectiveLat`/`effectiveLng`/`effectiveAreaName` used for topic pin and title prefix
+  - Falls back to GPS coordinates if no location mentioned or geocoding fails
+  - Allows "user in Koramangala says traffic in Indiranagar is terrible" → topic pinned to Indiranagar, not Koramangala
+- **Classification rules**: topic only matches if BOTH subject AND neighborhood align; `community_new` always results in immediate topic insert (no deferred processing)
+- **Topic title generation**: uses `effectiveAreaName` as mandatory prefix (e.g. "Indiranagar Traffic & Commute"); prompt enforces broad/categorical titles (20+ people can contribute)
+- After linking voice to topic: fires `generate-topic-summary` as background fetch (fire-and-forget)
+- Returns `{ transcript, classification, topic_id, topic_title, voice_count }` to Android client
+
+---
+
 ### 1I. UX Polish ✅ DONE
 
 - **Shimmer loading states** on all screens: Timeline (header + reflection card + 3 voice card skeletons), Topics (bubble ghost circles + list card skeletons), Topic Detail (full content shimmer)
@@ -231,6 +259,7 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - **Username stored on voices row** at insert time — avoids PostgREST join issues with auth schema
 - **Topics center-scroll fix**: uses `BoxWithConstraints` to get real viewport size for correct offset calculation
 - **New & My Topics list views** with `TopicListCard`, relative timestamps, Contributed badge
+- **IST timezone everywhere**: all `relativeTime()`, `formatTimestamp()`, and weekly chart day-of-week calculations use `ZoneId.of("Asia/Kolkata")`
 
 ---
 
@@ -318,4 +347,6 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 
 ## Known Outstanding SQL
 
-None — all required migrations have been applied.
+All required migrations have been applied:
+- `20260318_get_popular_topics_add_created_at.sql` — adds `created_at` to `get_popular_topics()` return type; enables correct New-tab sort
+- `20260318_fix_get_topic_by_id.sql` — renames parameter `topic_id` → `p_topic_id` in `get_topic_by_id()` to fix PostgreSQL column-name collision that caused the function to always return the first row regardless of which topic was queried; also adds `created_at` to return type

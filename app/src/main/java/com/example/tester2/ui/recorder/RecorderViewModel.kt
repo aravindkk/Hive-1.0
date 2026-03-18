@@ -12,8 +12,11 @@ import androidx.work.WorkManager
 import com.example.tester2.data.local.PendingVoiceDao
 import com.example.tester2.data.local.PendingVoiceUpload
 import com.example.tester2.data.local.UploadWorker
+import com.example.tester2.data.model.TranscriptionResult
 import com.example.tester2.data.recorder.AudioRecorder
 import com.example.tester2.data.repository.LocationRepository
+import com.example.tester2.data.repository.StorageRepository
+import com.example.tester2.data.repository.VoiceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +39,8 @@ class RecorderViewModel @Inject constructor(
     private val audioRecorder: AudioRecorder,
     private val locationRepository: LocationRepository,
     private val pendingVoiceDao: PendingVoiceDao,
+    private val storageRepository: StorageRepository,
+    private val voiceRepository: VoiceRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -52,6 +57,9 @@ class RecorderViewModel @Inject constructor(
 
     private val _uploadError = MutableStateFlow<String?>(null)
     val uploadError = _uploadError.asStateFlow()
+
+    private val _transcriptionResult = MutableStateFlow<TranscriptionResult?>(null)
+    val transcriptionResult = _transcriptionResult.asStateFlow()
 
     private val _recordingSeconds = MutableStateFlow(0)
     val recordingSeconds = _recordingSeconds.asStateFlow()
@@ -172,29 +180,42 @@ class RecorderViewModel @Inject constructor(
     private fun saveToQueue(file: File) {
         viewModelScope.launch {
             _isSaving.value = true
+            _transcriptionResult.value = null
             try {
                 val location = locationRepository.getLastLocation()
-                val pending = PendingVoiceUpload(
-                    filePath = file.absolutePath,
-                    topicId = currentTopicId,
-                    lat = location?.latitude,
-                    lng = location?.longitude
-                )
-                pendingVoiceDao.insert(pending)
+                val storageResult = storageRepository.uploadAudio(file)
 
-                val request = OneTimeWorkRequestBuilder<UploadWorker>()
-                    .setConstraints(
-                        Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
+                if (storageResult.isSuccess) {
+                    val path = storageResult.getOrThrow()
+                    voiceRepository.createVoiceNote(path, currentTopicId)
+                    val transcribeResult = voiceRepository.transcribeAudio(
+                        path, location?.latitude, location?.longitude,
+                        _areaName.value.takeIf { it != "Your area" }, currentTopicId
                     )
-                    .build()
-                WorkManager.getInstance(context).enqueue(request)
+                    if (transcribeResult.isSuccess) {
+                        _transcriptionResult.value = transcribeResult.getOrNull()
+                    }
+                    file.delete()
+                    Log.d("RecorderViewModel", "Upload complete, classification=${_transcriptionResult.value?.classification}")
+                } else {
+                    // Offline — fall back to WorkManager queue
+                    Log.w("RecorderViewModel", "Upload failed, queuing: ${storageResult.exceptionOrNull()?.message}")
+                    val pending = PendingVoiceUpload(
+                        filePath = file.absolutePath,
+                        topicId = currentTopicId,
+                        lat = location?.latitude,
+                        lng = location?.longitude
+                    )
+                    pendingVoiceDao.insert(pending)
+                    val request = OneTimeWorkRequestBuilder<UploadWorker>()
+                        .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                        .build()
+                    WorkManager.getInstance(context).enqueue(request)
+                }
 
                 _isSaved.value = true
-                Log.d("RecorderViewModel", "Queued upload ${pending.id}")
             } catch (e: Exception) {
-                Log.e("RecorderViewModel", "Failed to queue upload: ${e.message}", e)
+                Log.e("RecorderViewModel", "Failed to save: ${e.message}", e)
                 _uploadError.value = "Failed to save: ${e.message}"
             } finally {
                 _isSaving.value = false

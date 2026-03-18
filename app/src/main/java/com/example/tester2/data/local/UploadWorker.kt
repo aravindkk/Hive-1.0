@@ -55,7 +55,7 @@ class UploadWorker @AssistedInject constructor(
                 }
 
                 pendingVoiceDao.updateStatus(upload.id, "PROCESSING")
-                voiceRepository.transcribeAudio(path, upload.lat, upload.lng, upload.topicId)
+                voiceRepository.transcribeAudio(path, upload.lat, upload.lng, null, upload.topicId)
 
                 pendingVoiceDao.updateStatus(upload.id, "COMPLETE")
                 file.delete()

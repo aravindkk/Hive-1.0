@@ -36,8 +36,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.tester2.data.model.VoiceNote
 import com.example.tester2.ui.theme.HiveGreen
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+
+private val IST = ZoneId.of("Asia/Kolkata")
 
 private val CreamBg = Color(0xFFF9F9F4)
 private val CardWhite = Color(0xFFFFFFFF)
@@ -321,7 +324,7 @@ private fun WeeklyReflectionCard(
         val counts = IntArray(7)
         notes.forEach { note ->
             try {
-                val dow = ZonedDateTime.parse(note.createdAt).dayOfWeek.value - 1 // 0=Mon
+                val dow = ZonedDateTime.parse(note.createdAt).withZoneSameInstant(IST).dayOfWeek.value - 1 // 0=Mon
                 counts[dow]++
             } catch (_: Exception) {}
         }
@@ -567,8 +570,8 @@ fun VoiceNoteCard(
 
 private fun formatNoteTimestamp(createdAt: String): String {
     return try {
-        val zdt = ZonedDateTime.parse(createdAt)
-        val now = ZonedDateTime.now()
+        val zdt = ZonedDateTime.parse(createdAt).withZoneSameInstant(IST)
+        val now = ZonedDateTime.now(IST)
         val minutesAgo = java.time.Duration.between(zdt, now).toMinutes()
         val timeStr = zdt.format(DateTimeFormatter.ofPattern("h:mm a"))
         when {

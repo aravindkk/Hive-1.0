@@ -107,7 +107,7 @@ class VoiceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun transcribeAudio(storagePath: String, lat: Double?, lng: Double?, topicId: String?): Result<TranscriptionResult> {
+    override suspend fun transcribeAudio(storagePath: String, lat: Double?, lng: Double?, areaName: String?, topicId: String?): Result<TranscriptionResult> {
         return try {
             val response = supabase.functions.invoke("transcribe-audio") {
                 headers {
@@ -117,6 +117,7 @@ class VoiceRepositoryImpl @Inject constructor(
                     put("storage_path", storagePath)
                     if (lat != null) put("lat", lat)
                     if (lng != null) put("lng", lng)
+                    if (!areaName.isNullOrBlank()) put("area_name", areaName)
                     if (topicId != null) put("topic_id", topicId)
                 })
             }

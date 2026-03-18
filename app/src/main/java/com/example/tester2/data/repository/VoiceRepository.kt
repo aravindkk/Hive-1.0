@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface VoiceRepository {
     suspend fun createVoiceNote(storagePath: String, topicId: String? = null): Result<Unit>
-    suspend fun transcribeAudio(storagePath: String, lat: Double?, lng: Double?, topicId: String? = null): Result<com.example.tester2.data.model.TranscriptionResult>
+    suspend fun transcribeAudio(storagePath: String, lat: Double?, lng: Double?, areaName: String? = null, topicId: String? = null): Result<com.example.tester2.data.model.TranscriptionResult>
     fun getMyVoiceNotes(): Flow<List<VoiceNote>>
     fun getVoiceNotesForTopic(topicId: String): Flow<List<VoiceNote>>
     fun getAudioUrl(storagePath: String): String
