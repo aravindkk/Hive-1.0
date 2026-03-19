@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.example.tester2.ui.VoiceDetailSheet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +52,7 @@ private val CardWhite = Color(0xFFFFFFFF)
 private val TextDark = Color(0xFF1C1C1C)
 private val TextGray = Color(0xFF9E9E9E)
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun TimelineScreen(
     onTopicClick: (String) -> Unit = {},
@@ -61,6 +64,17 @@ fun TimelineScreen(
     val areaName by viewModel.areaName.collectAsState()
     val isWeeklyReflectionPlaying by viewModel.isWeeklyReflectionPlaying.collectAsState()
     var selectedVoice by remember { mutableStateOf<com.example.tester2.data.model.VoiceNote?>(null) }
+
+    val locationPermissionState = rememberMultiplePermissionsState(
+        listOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+    val locationGranted = locationPermissionState.allPermissionsGranted
+    LaunchedEffect(locationGranted) {
+        if (locationGranted) viewModel.refreshAreaName()
+    }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 

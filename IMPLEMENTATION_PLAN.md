@@ -107,6 +107,10 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - Currently using Geocoder reverse-geocoding for area name display
 - PostGIS queries used for topic scoping (good enough for alpha)
 
+**9b. LocationRepository** ✅ DONE
+- `getLocationUpdates(intervalMs)`: emits `lastLocation` immediately (if available) then continuous updates via `LocationCallback`; closes flow on `requestLocationUpdates` failure
+- `getLastLocation()`: delegates to `getLocationUpdates().first()` with 10s `withTimeoutOrNull` — resolves even on cold GPS where the old `client.lastLocation` task returned null
+
 **10. Room DB offline queue** ✅ DONE
 - `PendingVoiceUpload` entity: `id, filePath, topicId, lat, lng, status`
 - `UploadWorker` (HiltWorker + WorkManager): processes queue when CONNECTED
@@ -169,6 +173,8 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - `isLoading = MutableStateFlow(true)` — set false on first `getMyVoiceNotes()` emission
 - `isWeeklyReflectionPlaying` derived from `audioPlayer.playingUrl`
 - `toggleWeeklyReflection()` queues last 5 clips as playlist
+- **Area name resolution**: uses `getLocationUpdates().collect` instead of `getLastLocation()` — collects until a non-null area name is resolved, then cancels; handles cold GPS where `lastLocation` returns null
+- `refreshAreaName()` is idempotent: no-ops if already resolved or job is active; called from `TimelineScreen` via `LaunchedEffect(locationGranted)` so it re-fires if permissions are granted after startup
 
 ---
 
@@ -191,6 +197,7 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
   - Tab 1: same RPC, client-side sort by `createdAt.take(19)` DESC (works because `created_at` now returned by RPC)
   - Tab 2: `getMyTopics()` — queries user's voices, decodes as `List<VoiceNote>`, extracts `.topicId` with Kotlin `.mapNotNull`; no broken DB-level null filter
 - `isLoading` reset to true on tab switch, false on first emission
+- **Area name resolution**: same `getLocationUpdates()` collect pattern as `TimelineViewModel`; `refreshAreaName()` called from `LocalHiveScreen` on permission grant
 
 ---
 
@@ -221,7 +228,7 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - Logged-in users: plain cream screen for ~100ms auth check → home with shimmer (no splash)
 - `isLoggedIn` checked before `hasSeenSplash` in `startDest` logic
 - Permission dialog (RECORD_AUDIO + LOCATION) shown once on first install
-- Location settings check **removed** from startup (was causing freeze by firing two system dialogs simultaneously); permissions work fine without forcing GPS mode on
+- Location settings check re-added to `HiveApp.kt` via `checkLocationSettings` (GMS `LocationServices`); fires only after location permission is granted, avoiding the earlier double-dialog freeze. Launches `IntentSenderRequest` to prompt GPS mode on if needed.
 - **Android 12+ system splash suppressed**: `values-v31/themes.xml` sets `windowSplashScreenAnimatedIcon = @drawable/splash_icon` (solid cream shape — invisible against cream background) and `windowSplashScreenBackground = #F9F9F4`
 - **Full-screen splash image on all API levels**: `themes.xml` sets `android:windowBackground = @drawable/splash_screen_bg` (layer-list bitmap of `splash_background.png` with `gravity="fill"`)
 

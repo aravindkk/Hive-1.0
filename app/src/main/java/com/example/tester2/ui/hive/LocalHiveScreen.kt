@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.example.tester2.data.model.Topic
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -74,6 +76,7 @@ private data class BubbleCanvasData(
     val canvasHeight: Float
 )
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun LocalHiveScreen(
     viewModel: LocalHiveViewModel = hiltViewModel(),
@@ -85,6 +88,17 @@ fun LocalHiveScreen(
     val playingUrl by viewModel.playingUrl.collectAsState()
     val playingTopicTitle by viewModel.playingTopicTitle.collectAsState()
     val areaName by viewModel.areaName.collectAsState()
+
+    val locationPermissionState = rememberMultiplePermissionsState(
+        listOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+    val locationGranted = locationPermissionState.allPermissionsGranted
+    LaunchedEffect(locationGranted) {
+        if (locationGranted) viewModel.refreshAreaName()
+    }
 
     val density = LocalDensity.current
     val bubbleCanvas = remember(topics) { computeBubbleLayouts(topics) }

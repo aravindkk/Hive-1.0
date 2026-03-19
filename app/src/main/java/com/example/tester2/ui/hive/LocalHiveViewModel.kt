@@ -58,10 +58,24 @@ class LocalHiveViewModel @Inject constructor(
                 if (url == null) _playingTopicTitle.value = null
             }
         }
-        viewModelScope.launch {
-            val location = locationRepository.getLastLocation() ?: return@launch
-            val name = resolveAreaName(location.latitude, location.longitude) ?: return@launch
-            _areaName.value = name
+        refreshAreaName()
+    }
+
+    private var locationJob: Job? = null
+
+    fun refreshAreaName() {
+        if (_areaName.value != "Your area") return
+        if (locationJob?.isActive == true) return
+        locationJob = viewModelScope.launch {
+            try {
+                locationRepository.getLocationUpdates().collect { location ->
+                    val name = resolveAreaName(location.latitude, location.longitude)
+                    if (name != null) {
+                        _areaName.value = name
+                        locationJob?.cancel()
+                    }
+                }
+            } catch (e: Exception) { /* SecurityException or cancellation */ }
         }
     }
 

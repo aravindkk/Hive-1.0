@@ -1,5 +1,9 @@
 package com.example.tester2.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,7 +30,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import android.net.Uri
 import com.example.tester2.R
 import com.example.tester2.ui.auth.AuthScreen
 import com.example.tester2.ui.auth.AuthViewModel
@@ -35,6 +39,12 @@ import com.example.tester2.ui.recorder.RecorderScreen
 import com.example.tester2.ui.theme.HiveGreen
 import com.example.tester2.ui.theme.HiveTheme
 import com.example.tester2.ui.timeline.TimelineScreen
+import com.google.accompanist.permissions.isGranted
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
 
 private val NavActiveColor = Color(0xFF166534)
 private val NavInactiveColor = Color(0xFF9E9E9E)
@@ -126,6 +136,33 @@ fun MainScreen() {
 
     LaunchedEffect(Unit) {
         multiplePermissionsState.launchMultiplePermissionRequest()
+    }
+
+    val context = LocalContext.current
+    val locationSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { /* user responded — location updates will start automatically */ }
+
+    val locationPermissionsGranted = multiplePermissionsState.permissions
+        .filter { it.permission == android.Manifest.permission.ACCESS_FINE_LOCATION ||
+                  it.permission == android.Manifest.permission.ACCESS_COARSE_LOCATION }
+        .any { it.status.isGranted }
+
+    LaunchedEffect(locationPermissionsGranted) {
+        if (!locationPermissionsGranted) return@LaunchedEffect
+        val request = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 10_000L).build()
+        val settingsRequest = LocationSettingsRequest.Builder().addLocationRequest(request).build()
+        LocationServices.getSettingsClient(context)
+            .checkLocationSettings(settingsRequest)
+            .addOnFailureListener { exception ->
+                if (exception is ResolvableApiException) {
+                    try {
+                        locationSettingsLauncher.launch(
+                            IntentSenderRequest.Builder(exception.resolution).build()
+                        )
+                    } catch (e: Exception) { /* ignore */ }
+                }
+            }
     }
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()

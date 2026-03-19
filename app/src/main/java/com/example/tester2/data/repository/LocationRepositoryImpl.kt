@@ -13,25 +13,24 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
-import kotlin.coroutines.resume
 
 class LocationRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val client: FusedLocationProviderClient
 ) : LocationRepository {
 
-    @SuppressLint("MissingPermission") // Checked in UI
+    @SuppressLint("MissingPermission")
     override fun getLocationUpdates(intervalMs: Long): Flow<Location> = callbackFlow {
-        // Try to get last known location first
         client.lastLocation.addOnSuccessListener { location ->
             location?.let { trySend(it) }
         }
 
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
             .build()
-            
+
         val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 result.lastLocation?.let { trySend(it) }
@@ -39,17 +38,19 @@ class LocationRepositoryImpl @Inject constructor(
         }
 
         client.requestLocationUpdates(request, callback, Looper.getMainLooper())
+            .addOnFailureListener { close(it) }
 
         awaitClose {
             client.removeLocationUpdates(callback)
         }
     }
 
-    @SuppressLint("MissingPermission")
-    override suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { cont ->
-        client.lastLocation
-            .addOnSuccessListener { cont.resume(it) }
-            .addOnFailureListener { cont.resume(null) }
-            .addOnCanceledListener { cont.resume(null) }
-    }
+    override suspend fun getLastLocation(): Location? =
+        withTimeoutOrNull(10_000) {
+            try {
+                getLocationUpdates().first()
+            } catch (e: Exception) {
+                null
+            }
+        }
 }

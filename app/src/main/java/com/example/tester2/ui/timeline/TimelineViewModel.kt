@@ -51,16 +51,30 @@ class TimelineViewModel @Inject constructor(
 
     init {
         loadVoiceNotes()
-        viewModelScope.launch {
-            val location = locationRepository.getLastLocation() ?: return@launch
-            val name = withContext(Dispatchers.IO) {
-                try {
-                    @Suppress("DEPRECATION")
-                    Geocoder(context, Locale.getDefault()).getFromLocation(location.latitude, location.longitude, 1)
-                        ?.firstOrNull()?.let { it.subLocality ?: it.locality }
-                } catch (e: Exception) { null }
-            } ?: return@launch
-            _areaName.value = name
+        refreshAreaName()
+    }
+
+    private var locationJob: kotlinx.coroutines.Job? = null
+
+    fun refreshAreaName() {
+        if (_areaName.value != "Your area") return
+        if (locationJob?.isActive == true) return
+        locationJob = viewModelScope.launch {
+            try {
+                locationRepository.getLocationUpdates().collect { location ->
+                    val name = withContext(Dispatchers.IO) {
+                        try {
+                            @Suppress("DEPRECATION")
+                            Geocoder(context, Locale.getDefault()).getFromLocation(location.latitude, location.longitude, 1)
+                                ?.firstOrNull()?.let { it.subLocality ?: it.locality }
+                        } catch (e: Exception) { null }
+                    }
+                    if (name != null) {
+                        _areaName.value = name
+                        locationJob?.cancel()
+                    }
+                }
+            } catch (e: Exception) { /* SecurityException or cancellation */ }
         }
     }
 
