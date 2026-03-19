@@ -530,7 +530,7 @@ private fun TopicListCard(topic: Topic, isMyTopics: Boolean, onClick: () -> Unit
                     }
                     if (topic.voiceCount > 0) {
                         Text(
-                            "${topic.voiceCount} ${if (topic.voiceCount == 1L) "voice" else "voices"}",
+                            "${topic.voiceCount} ${if (topic.voiceCount == 1L) "person" else "people"} talking",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF666666)
                         )

@@ -163,7 +163,7 @@ LaunchedEffect(Unit) {
 
 ---
 
-## Part 4 — Android: Consent Gate
+## Part 4 — Android: Consent Gate ⏳ Deferred Phase 3
 
 **Trigger:** Classification returns `"ambiguous"` from `transcribe-audio`.
 

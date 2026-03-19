@@ -279,9 +279,13 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - `moderate-content`: LLM classifier for hate speech, PII, spam
 - Flagged voices: set `status = 'moderation_flagged'`, block from community feed
 
-**22. Resonance & milestones** ⏳
-- DB trigger on voice INSERT → increment `topics.contributor_count`
-- Milestone table + RPC for unread milestones per user
+**22. Resonance & milestones** ✅ DONE
+- `transcribe-audio` returns `voice_count` (already) + `is_milestone: boolean` (new) — thresholds: 10, 50, 100, 500
+- `TranscriptionResult` model: added `isMilestone: Boolean` field
+- `SavedCard`: resonance line ("N people are talking about this") shown on all community clips
+- `SavedCard`: milestone banner (`AnimatedVisibility` slide-up + fade) with threshold-specific copy; check circle pulses via `infiniteRepeatable`; auto-dismiss extended to 4s on milestone
+- Topic list cards: "N people talking" label (was "N voices")
+- No DB trigger or milestone table needed — `voice_count` is authoritative at insert time via COUNT JOIN
 
 **23. Streaming transcription** ⏳
 - Replace batch `transcribe-audio` with SSE or Supabase Realtime partial-transcript push
@@ -300,12 +304,9 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 
 ### 2B. App
 
-**27. Consent gate UI** ⏳
-- Bottom sheet after AMBIGUOUS/COMMUNITY classification: "Add to Hive? Yes / Keep Private"
+**27. Consent gate UI** ⏳ Deferred Phase 3
 
-**28. Resonance UI** ⏳
-- Post-recording overlay: "142 people in your area are talking about this"
-- Milestone animation: confetti/pulse at 10, 50, 100, 500 voices
+**28. Resonance UI** ✅ DONE (see item 22)
 
 **29. Moderation feedback UI** ⏳
 - Flagged clips in My Thoughts: subtle indicator + bottom sheet explanation

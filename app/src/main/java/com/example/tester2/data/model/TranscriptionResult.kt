@@ -9,5 +9,6 @@ data class TranscriptionResult(
     val classification: String = "personal",
     @SerialName("topic_id") val topicId: String? = null,
     @SerialName("topic_title") val topicTitle: String? = null,
-    @SerialName("voice_count") val voiceCount: Long = 0
+    @SerialName("voice_count") val voiceCount: Long = 0,
+    @SerialName("is_milestone") val isMilestone: Boolean = false,
 )

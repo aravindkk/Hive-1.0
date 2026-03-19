@@ -4,8 +4,16 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -344,14 +352,25 @@ private fun SavedCard(
     transcriptionResult: TranscriptionResult?,
     onDone: () -> Unit
 ) {
+    val isMilestone = transcriptionResult?.isMilestone == true
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(2500)
+        kotlinx.coroutines.delay(if (isMilestone) 4000L else 2500L)
         onDone()
     }
 
     // Determine display: preset topic (from topic detail) > transcription result > queued fallback
     val resolvedTopicTitle = presetTopicTitle ?: transcriptionResult?.topicTitle
     val isPrivate = transcriptionResult != null && resolvedTopicTitle == null
+    val voiceCount = transcriptionResult?.voiceCount ?: 0L
+
+    // Pulse the check circle on milestone
+    val pulseTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseScale by pulseTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isMilestone) 1.15f else 1f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+        label = "pulse_scale"
+    )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -360,6 +379,7 @@ private fun SavedCard(
         Box(
             modifier = Modifier
                 .size(64.dp)
+                .scale(pulseScale)
                 .clip(CircleShape)
                 .background(HiveGreen),
             contentAlignment = Alignment.Center
@@ -411,7 +431,49 @@ private fun SavedCard(
                 )
             }
         }
+
+        // Milestone banner — slides up when a threshold is hit
+        AnimatedVisibility(
+            visible = isMilestone,
+            enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn()
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(16.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = HiveGreen.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        milestoneMessage(voiceCount),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = HiveGreen,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
+            }
+        }
+
+        // Resonance line — shown for community clips that aren't milestones
+        if (resolvedTopicTitle != null && !isMilestone && voiceCount > 1) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                if (voiceCount == 1L) "You're the first voice on this topic."
+                else "$voiceCount people are talking about this.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF888888),
+                textAlign = TextAlign.Center
+            )
+        }
     }
+}
+
+private fun milestoneMessage(voiceCount: Long): String = when {
+    voiceCount >= 500 -> "500 voices. This is a movement."
+    voiceCount >= 100 -> "You're the ${voiceCount}th voice on this topic.\nYour neighbourhood is listening."
+    voiceCount >= 50  -> "50 people and counting. Your area is buzzing."
+    voiceCount >= 10  -> "10 voices on this topic. Something's building here."
+    else              -> ""
 }
 
 @Composable
