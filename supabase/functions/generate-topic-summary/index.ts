@@ -56,15 +56,21 @@ async function generateSummary(topic_id: string) {
         return;
     }
 
+    // Use anonymous labels so Gemini never sees real usernames or user IDs
+    const labelToUsername: Record<string, string> = {};
     const contributions = (voices as any[])
-        .map((v) => `[${v.username ?? v.user_id.slice(0, 8)}]: "${v.transcript}"`)
+        .map((v, i) => {
+            const label = `Resident ${i + 1}`;
+            labelToUsername[label] = v.username ?? v.user_id.slice(0, 8);
+            return `[${label}]: "${v.transcript}"`;
+        })
         .join("\n");
 
     const summaryPrompt = `You are summarizing a neighborhood voice discussion for the Hive app. Assume you are a person in that neighbourhood.
 
 Topic: "${topic.title}"
 
-Contributor voices (format: [userId]: "transcript"):
+Contributor voices (format: [label]: "transcript"):
 ${contributions}
 
 Task: Write a 60-120 second informally spoken narrative summary of this discussion. Structure it as:
@@ -78,14 +84,15 @@ Return ONLY valid JSON, no markdown:
   "segments": [
     {
       "text": "The spoken text for this segment",
-      "attributed_to": ["userId1", "userId2"]
+      "attributed_to": ["Resident 1", "Resident 2"]
     }
   ]
 }
 
 Rules:
 - Each segment should be 1-2 sentences
-- "attributed_to" lists the usernames whose voices most support this segment (use the exact username labels from the contributions list)
+- "attributed_to" lists the contributor labels (e.g. "Resident 1") whose voices most support this segment
+- Never mention contributor labels or any identifiers in the spoken text itself — the narrative should read as anonymous community sentiment
 - If a segment is the intro/outro with no direct attribution, use an empty array
 - Keep language conversational and suited for text-to-speech
 - Write in present tense, as if summarizing live community sentiment`;
@@ -105,7 +112,13 @@ Rules:
         throw new Error("No segments generated");
     }
 
-    const timedSegments = estimateTimings(parsed.segments);
+    // Map anonymous labels back to real usernames for attribution display
+    const resolvedSegments = parsed.segments.map((seg: { text: string; attributed_to: string[] }) => ({
+        text: seg.text,
+        attributed_to: seg.attributed_to.map((label: string) => labelToUsername[label] ?? label),
+    }));
+
+    const timedSegments = estimateTimings(resolvedSegments);
     const lastSeg = timedSegments[timedSegments.length - 1];
     const totalDurationSeconds =
         (lastSeg.start_ms + lastSeg.text.split(/\s+/).length * (60000 / 150)) / 1000;

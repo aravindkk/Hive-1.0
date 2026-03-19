@@ -215,13 +215,16 @@ ${locationPrefix}
         if (updateError) throw updateError;
 
         // 8. Fetch current voice_count for matched topic (for resonance display)
+        const MILESTONE_THRESHOLDS = [5, 10, 50, 100, 500];
         let voiceCount = 0;
+        let isMilestone = false;
         if (matchedTopicId) {
             const { count } = await supabase
                 .from("voices")
                 .select("id", { count: "exact", head: true })
                 .eq("topic_id", matchedTopicId);
             voiceCount = count ?? 0;
+            isMilestone = MILESTONE_THRESHOLDS.includes(voiceCount);
 
             // 9. Trigger AI summary generation in the background (fire and forget)
             const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -237,7 +240,7 @@ ${locationPrefix}
         }
 
         return new Response(
-            JSON.stringify({ transcript, classification, topic_id: matchedTopicId, topic_title: matchedTopicTitle, voice_count: voiceCount }),
+            JSON.stringify({ transcript, classification, topic_id: matchedTopicId, topic_title: matchedTopicTitle, voice_count: voiceCount, is_milestone: isMilestone }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
     } catch (error) {

@@ -18,13 +18,16 @@
 
 ---
 
-## Current State
+## Status
 
-- `transcribe-audio` already returns `{ transcript, classification, topic_id, topic_title, voice_count }` to the Android client
-- `TranscriptionResult.voiceCount` is already a field on the model — it's just not displayed anywhere
-- `SavedCard` shows "Added to the Hive!" but ignores `voiceCount` entirely
-- AMBIGUOUS classification currently silently saves to personal — no consent gate shown
-- No milestone table or trigger exists in the DB
+| Part | Description | Status |
+|---|---|---|
+| 1a | `is_milestone` in `transcribe-audio` response | ✅ Done |
+| 2 | `TranscriptionResult` model — `isMilestone` field | ✅ Done |
+| 3 | `SavedCard` — resonance line + milestone banner + pulse animation | ✅ Done |
+| 4 | Consent gate UI | ⏳ Deferred Phase 3 |
+| 5 | Resonance in topic cards — list, bubble, deep dive | ✅ Done |
+| — | `generate-topic-summary` — anonymous contributor labels (privacy fix) | ✅ Done |
 
 ---
 
@@ -37,7 +40,7 @@
 **In `supabase/functions/transcribe-audio/index.ts`**, after computing `voiceCount`:
 
 ```typescript
-const MILESTONE_THRESHOLDS = [10, 50, 100, 500];
+const MILESTONE_THRESHOLDS = [5, 10, 50, 100, 500];
 const isMilestone = MILESTONE_THRESHOLDS.includes(voiceCount);
 
 // In the return payload:
@@ -163,7 +166,7 @@ LaunchedEffect(Unit) {
 
 ---
 
-## Part 4 — Android: Consent Gate
+## Part 4 — Android: Consent Gate ⏳ Deferred Phase 3
 
 **Trigger:** Classification returns `"ambiguous"` from `transcribe-audio`.
 
@@ -268,17 +271,27 @@ If `topicTitle == null` (would create a new topic):
 
 ---
 
-## Part 5 — Resonance in Topic Cards
+## Part 5 — Resonance in Topic Cards ✅ Done
 
-**File:** `app/src/main/java/com/example/tester2/ui/hive/LocalHiveScreen.kt` (bubble labels) and topic list cards.
+- **Bubble labels**: `voiceCountLabel()` updated — was using stale design mockup strings ("Alert active", "scouting", "joined"); now shows "N people" / "Be the first" / "Nk people"
+- **Topic list cards**: changed from "N voices" → "N people talking" (singular: "1 person talking")
+- **Topic deep dive header**: changed from "N voices" → "N people talking"
 
-The bubble view already shows `voiceCount` as the size driver. Make it explicit in the tooltip or bubble label:
+No new network calls — `voiceCount` was already in the `Topic` model.
 
-- Bubble label: `"$voiceCount voices"` (already approximate — just ensure the count is legible)
-- Topic list cards (`TopicListCard`): show `"$voiceCount people talking"` as a secondary line (already shows relative timestamp; add count alongside it)
-- Topic deep dive header: `"$voiceCount voices in this topic"` (already shown via `voice_count` from `get_topic_by_id`)
+---
 
-No new network calls required — `voiceCount` is already in the `Topic` model.
+## Part 6 — Privacy: Anonymous Contributors in AI Summary ✅ Done
+
+**File:** `supabase/functions/generate-topic-summary/index.ts`
+
+Gemini was being sent speaker labels like `[48301d55]` (raw user_id prefix when `username` is null) and `[sagewood]` (real username), causing identifiers to leak into the spoken narrative text.
+
+**Fix:**
+- Contributors are now mapped to anonymous labels (`Resident 1`, `Resident 2`, …) before being sent to Gemini
+- A `labelToUsername` map is built alongside, used to resolve labels back to real usernames for `attributed_to` attribution display after Gemini responds
+- Prompt rule added: *"Never mention contributor labels or any identifiers in the spoken text itself"*
+- The `generate-topic-summary` function was redeployed and the "HSR Startup Founders" summary was manually regenerated to clear the stale cached result
 
 ---
 

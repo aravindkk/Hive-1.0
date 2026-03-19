@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -98,7 +97,7 @@ fun TopicDeepDiveScreen(
                     )
                     val count = topic?.voiceCount ?: voices.size.toLong()
                     Text(
-                        text = "$count ${if (count == 1L) "voice" else "voices"}",
+                        text = "$count ${if (count == 1L) "person" else "people"} talking",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextGray
                     )
@@ -129,7 +128,6 @@ fun TopicDeepDiveScreen(
                         playingUrl = playingUrl,
                         currentPositionMs = currentPositionMs,
                         onPlayToggle = { url -> viewModel.toggleAudio(url) },
-                        onRetry = { viewModel.triggerSummaryGeneration(topicId) },
                         getAudioUrl = { path -> viewModel.getSummaryAudioUrl(path) }
                     )
                 }
@@ -316,7 +314,6 @@ private fun AiSummarySection(
     playingUrl: String?,
     currentPositionMs: Long,
     onPlayToggle: (String) -> Unit,
-    onRetry: () -> Unit,
     getAudioUrl: (String) -> String
 ) {
     val summaryAudioUrl = summary?.audioPath?.let { getAudioUrl(it) }
@@ -354,19 +351,6 @@ private fun AiSummarySection(
                     color = HiveGreen,
                     modifier = Modifier.weight(1f)
                 )
-                if (summary != null) {
-                    IconButton(
-                        onClick = onRetry,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Regenerate",
-                            tint = TextGray,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
             }
 
             Spacer(Modifier.height(12.dp))
