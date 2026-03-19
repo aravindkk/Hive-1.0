@@ -16,3 +16,4 @@ local.properties
 /app/google-services.json
 .env.secrets
 *.env.secrets
+hive-442d5-dc1fa23db06a.json
