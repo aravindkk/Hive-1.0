@@ -215,7 +215,7 @@ ${locationPrefix}
         if (updateError) throw updateError;
 
         // 8. Fetch current voice_count for matched topic (for resonance display)
-        const MILESTONE_THRESHOLDS = [10, 50, 100, 500];
+        const MILESTONE_THRESHOLDS = [5, 10, 50, 100, 500];
         let voiceCount = 0;
         let isMilestone = false;
         if (matchedTopicId) {

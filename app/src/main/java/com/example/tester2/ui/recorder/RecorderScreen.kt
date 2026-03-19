@@ -473,6 +473,7 @@ private fun milestoneMessage(voiceCount: Long): String = when {
     voiceCount >= 100 -> "You're the ${voiceCount}th voice on this topic.\nYour neighbourhood is listening."
     voiceCount >= 50  -> "50 people and counting. Your area is buzzing."
     voiceCount >= 10  -> "10 voices on this topic. Something's building here."
+    voiceCount >= 5   -> "5 voices in. Your neighbourhood is waking up."
     else              -> ""
 }
 

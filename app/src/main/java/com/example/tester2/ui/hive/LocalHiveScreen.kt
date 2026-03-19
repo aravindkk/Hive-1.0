@@ -511,32 +511,34 @@ private fun TopicListCard(topic: Topic, isMyTopics: Boolean, onClick: () -> Unit
                     maxLines = 2
                 )
                 Spacer(Modifier.height(4.dp))
+                if (isMyTopics) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFFD1F2DF)
+                    ) {
+                        Text(
+                            "Contributed",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color(0xFF166534),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(3.dp))
+                }
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isMyTopics) {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFD1F2DF)
-                        ) {
-                            Text(
-                                "Contributed",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color(0xFF166534),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
                     if (topic.voiceCount > 0) {
                         Text(
                             "${topic.voiceCount} ${if (topic.voiceCount == 1L) "person" else "people"} talking",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF666666)
+                            color = Color(0xFF666666),
+                            maxLines = 1
                         )
                         Text("·", style = MaterialTheme.typography.bodySmall, color = Color(0xFFBBBBBB))
                     }
-                    Text(age, style = MaterialTheme.typography.bodySmall, color = Color(0xFF999999))
+                    Text(age, style = MaterialTheme.typography.bodySmall, color = Color(0xFF999999), maxLines = 1)
                 }
             }
 
@@ -694,9 +696,8 @@ private fun categoryIcon(title: String): ImageVector {
 }
 
 private fun voiceCountLabel(count: Long): String = when {
-    count == 0L -> "Alert active" // Based on Safety bubble
-    count < 10L -> "$count local"
-    count < 100L -> "$count voices"
-    count < 1000L -> "$count scouting" // Based on New Cafe
-    else -> "${count / 100}k joined" // Based on Water Supply
+    count == 0L -> "Be the first"
+    count == 1L -> "1 person"
+    count < 1000L -> "$count people"
+    else -> "${count / 1000}k people"
 }
