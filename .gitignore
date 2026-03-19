@@ -17,3 +17,4 @@ local.properties
 .env.secrets
 *.env.secrets
 hive-442d5-dc1fa23db06a.json
+build_*
