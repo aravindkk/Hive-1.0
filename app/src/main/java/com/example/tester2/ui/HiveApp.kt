@@ -51,7 +51,7 @@ private val NavInactiveColor = Color(0xFF9E9E9E)
 private val ScreenBg = Color(0xFFF9F9F4)
 
 @Composable
-fun HiveApp() {
+fun HiveApp(initialDeepLink: String? = null) {
     HiveTheme {
         val authViewModel: AuthViewModel = hiltViewModel()
         val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
@@ -89,7 +89,7 @@ fun HiveApp() {
                 )
             }
             composable("home") {
-                MainScreen()
+                MainScreen(initialDeepLink = initialDeepLink)
             }
         }
     }
@@ -118,7 +118,7 @@ fun SplashScreen(onComplete: () -> Unit) {
 
 @OptIn(com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(initialDeepLink: String? = null) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -126,13 +126,15 @@ fun MainScreen() {
     // Hide nav chrome on full-screen destinations
     val showNav = currentRoute in listOf("feed", "local_hive")
 
-    val multiplePermissionsState = com.google.accompanist.permissions.rememberMultiplePermissionsState(
-        listOf(
-            android.Manifest.permission.RECORD_AUDIO,
-            android.Manifest.permission.ACCESS_FINE_LOCATION,
-            android.Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-    )
+    val permissions = buildList {
+        add(android.Manifest.permission.RECORD_AUDIO)
+        add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            add(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    val multiplePermissionsState = com.google.accompanist.permissions.rememberMultiplePermissionsState(permissions)
 
     LaunchedEffect(Unit) {
         multiplePermissionsState.launchMultiplePermissionRequest()
@@ -163,6 +165,18 @@ fun MainScreen() {
                     } catch (e: Exception) { /* ignore */ }
                 }
             }
+    }
+
+    LaunchedEffect(initialDeepLink) {
+        if (initialDeepLink == null) return@LaunchedEffect
+        when {
+            initialDeepLink.startsWith("hive://topic/") -> {
+                val topicId = initialDeepLink.removePrefix("hive://topic/")
+                navController.navigate("topic_deep_dive/$topicId")
+            }
+            initialDeepLink == "hive://timeline" -> navController.navigate("feed")
+            initialDeepLink == "hive://feed"     -> navController.navigate("local_hive")
+        }
     }
 
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()

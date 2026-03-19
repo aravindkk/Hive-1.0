@@ -1,18 +1,34 @@
 package com.example.tester2.ui.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tester2.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import javax.inject.Inject
+
+@Serializable
+private data class FcmTokenRow(
+    @SerialName("user_id") val userId: String,
+    val token: String,
+    @SerialName("updated_at") val updatedAt: String
+)
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repository: AuthRepository,
-    private val preferenceManager: com.example.tester2.utils.PreferenceManager
+    private val preferenceManager: com.example.tester2.utils.PreferenceManager,
+    private val supabase: SupabaseClient
 ) : ViewModel() {
 
     private val _email = MutableStateFlow("")
@@ -174,6 +190,21 @@ class AuthViewModel @Inject constructor(
             result.onSuccess {
                 _isLoggedIn.value = true
                 preferenceManager.saveLastLoginTimestamp(System.currentTimeMillis())
+
+                // FCM token registration
+                val fcmToken = preferenceManager.getFcmToken()
+                if (fcmToken != null) {
+                    viewModelScope.launch(Dispatchers.IO) {
+                        try {
+                            val userId = supabase.auth.currentUserOrNull()?.id ?: return@launch
+                            supabase.from("fcm_tokens").upsert(
+                                listOf(FcmTokenRow(userId, fcmToken, Clock.System.now().toString()))
+                            ) { onConflict = "user_id,token" }
+                        } catch (e: Exception) {
+                            Log.e("AuthViewModel", "FCM token upsert failed", e)
+                        }
+                    }
+                }
                 
                 // CRITICAL FIX: Sync local ID with actual remote username
                 // This handles cases where local prefs are out of sync with the account (e.g. ElectricStar vs BlueFox63)

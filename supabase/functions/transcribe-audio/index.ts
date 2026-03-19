@@ -229,6 +229,17 @@ ${locationPrefix}
             // 9. Trigger AI summary generation in the background (fire and forget)
             const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
             const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+            // 9a. Fire trending notification at milestone thresholds
+            const TRENDING_THRESHOLDS = [5, 10, 20];
+            if (TRENDING_THRESHOLDS.includes(voiceCount)) {
+                fetch(`${supabaseUrl}/functions/v1/send-trending-notification`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+                    body: JSON.stringify({ topic_id: matchedTopicId, voice_count: voiceCount }),
+                }).catch(() => {});
+            }
+
             fetch(`${supabaseUrl}/functions/v1/generate-topic-summary`, {
                 method: "POST",
                 headers: {

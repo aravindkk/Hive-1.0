@@ -16,6 +16,7 @@ class PreferenceManager @Inject constructor(
         private const val KEY_LAST_GENERATED_ID = "last_generated_id"
         private const val KEY_LAST_LOGIN_TIMESTAMP = "last_login_timestamp"
         private const val KEY_HAS_SEEN_SPLASH = "has_seen_splash"
+        private const val KEY_FCM_TOKEN = "fcm_token"
     }
 
     fun saveLastGeneratedId(id: String) {
@@ -39,6 +40,9 @@ class PreferenceManager @Inject constructor(
     fun markSplashSeen() {
         prefs.edit().putBoolean(KEY_HAS_SEEN_SPLASH, true).apply()
     }
+
+    fun saveFcmToken(token: String) = prefs.edit().putString(KEY_FCM_TOKEN, token).apply()
+    fun getFcmToken(): String? = prefs.getString(KEY_FCM_TOKEN, null)
 
     fun clear() {
         prefs.edit().clear().apply()

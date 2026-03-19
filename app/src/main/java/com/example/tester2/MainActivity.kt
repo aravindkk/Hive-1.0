@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            HiveApp()
+            HiveApp(initialDeepLink = intent.getStringExtra("deep_link"))
         }
     }
 }

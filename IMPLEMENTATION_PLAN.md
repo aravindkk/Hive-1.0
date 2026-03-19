@@ -29,7 +29,7 @@
 - Resonance mechanism (milestone animations) — deferred Phase 2
 - Localized recording prompts — deferred Phase 2
 - Google Sign-In — Phase 3
-- Push notifications — Phase 3
+- Push notifications — Android code ✅, deployment ⏳
 - AI mood detection + weekly AI reflection — Phase 3
 - Content moderation pipeline — Phase 2
 - Map exploration screen (F8) — Phase 3
@@ -280,7 +280,7 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - Flagged voices: set `status = 'moderation_flagged'`, block from community feed
 
 **22. Resonance & milestones** ✅ DONE
-- `transcribe-audio` returns `voice_count` (already) + `is_milestone: boolean` (new) — thresholds: 10, 50, 100, 500
+- `transcribe-audio` returns `voice_count` (already) + `is_milestone: boolean` (new) — thresholds: 5, 10, 50, 100, 500
 - `TranscriptionResult` model: added `isMilestone: Boolean` field
 - `SavedCard`: resonance line ("N people are talking about this") shown on all community clips
 - `SavedCard`: milestone banner (`AnimatedVisibility` slide-up + fade) with threshold-specific copy; check circle pulses via `infiniteRepeatable`; auto-dismiss extended to 4s on milestone
@@ -318,7 +318,16 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 
 **30. Google Sign-In** ⏳ (Credential Manager API + Supabase GoTrue Google OAuth)
 
-**31. Push notifications** ⏳ (FCM: trending, resonance milestones, weekly reflection, re-engagement)
+**31. Push notifications** — Android code ✅ DONE, deployment ⏳ PENDING
+- FCM HTTP v1 API (legacy shut down June 2024); OAuth2 via service account JWT — no server key needed
+- `fcm_tokens` table with RLS + `UNIQUE(user_id, token)` upsert; `updated_at` = last-active signal (`20260319_fcm_tokens.sql` — **not yet applied**)
+- `HiveFirebaseMessagingService` — token registration + data-only notifications (full display control in all app states)
+- `send-trending-notification`, `send-weekly-reflection`, `send-reengagement-notification` edge functions written — **not yet deployed**
+- Trending hook in `transcribe-audio` fires at thresholds 5/10/20 voices (fire-and-forget) ✅ DONE
+- Cron triggers via cron-job.org (pg_cron unavailable on free plan) — **not yet set up**; `20260319_schedule_notifications.sql` has pg_cron version for future paid plan
+- Deep-link routing: `hive://topic/{id}`, `hive://timeline`, `hive://feed` ✅ DONE
+- `POST_NOTIFICATIONS` permission requested at runtime (Android 13+) ✅ DONE
+- **Still needed:** (1) run `fcm_tokens` migration in SQL Editor, (2) `supabase functions deploy` × 3, (3) set up cron jobs on cron-job.org
 
 **32. AI Journaling** ⏳
 - `generate-weekly-reflection` scheduled edge function

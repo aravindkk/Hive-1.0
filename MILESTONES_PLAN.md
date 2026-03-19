@@ -10,7 +10,7 @@
 **Resonance** is the "wow" moment immediately after recording: the user sees that real neighbors are already talking about the same thing.
 > *"142 people in your area are talking about this too."*
 
-**Milestones** are community momentum markers — special animated moments at contributor thresholds (10 / 50 / 100 / 500).
+**Milestones** are community momentum markers — special animated moments at contributor thresholds (5 / 10 / 50 / 100 / 500).
 > *"You're the 100th voice on this topic. Your neighbourhood is listening."*
 
 **Consent Gate** gives the user final say before their clip enters the community feed, triggered when the AI classifies a clip as AMBIGUOUS.
@@ -65,7 +65,7 @@ When push notifications are added, a `milestone_events` table will be needed to 
 CREATE TABLE public.milestone_events (
   id         uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
   topic_id   uuid        NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
-  threshold  int         NOT NULL,  -- 10, 50, 100, 500
+  threshold  int         NOT NULL,  -- 5, 10, 50, 100, 500
   reached_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (topic_id, threshold)
 );
