@@ -62,7 +62,8 @@ fun TimelineScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val playingUrl by viewModel.playingUrl.collectAsState()
     val areaName by viewModel.areaName.collectAsState()
-    val isWeeklyReflectionPlaying by viewModel.isWeeklyReflectionPlaying.collectAsState()
+    val isWeeklyAudioPlaying by viewModel.isWeeklyAudioPlaying.collectAsState()
+    val weeklyReflection by viewModel.weeklyReflection.collectAsState()
     var selectedVoice by remember { mutableStateOf<com.example.tester2.data.model.VoiceNote?>(null) }
 
     val locationPermissionState = rememberMultiplePermissionsState(
@@ -142,8 +143,10 @@ fun TimelineScreen(
                 item {
                     WeeklyReflectionCard(
                         notes = voiceNotes,
-                        isPlaying = isWeeklyReflectionPlaying,
-                        onPlayClick = { viewModel.toggleWeeklyReflection() }
+                        isPlaying = isWeeklyAudioPlaying,
+                        onPlayClick = { viewModel.toggleWeeklyAudio() },
+                        teaser = weeklyReflection?.teaser,
+                        audioAvailable = weeklyReflection?.audioPath != null
                     )
                 }
 
@@ -347,7 +350,9 @@ private fun TimelineShimmer() {
 private fun WeeklyReflectionCard(
     notes: List<VoiceNote>,
     isPlaying: Boolean,
-    onPlayClick: () -> Unit
+    onPlayClick: () -> Unit,
+    teaser: String? = null,
+    audioAvailable: Boolean = false
 ) {
     // Compute per-day-of-week counts for the last 7 days
     val dayLabels = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
@@ -388,7 +393,7 @@ private fun WeeklyReflectionCard(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Your voice energy was high on $peakDayName.",
+                        teaser ?: "Your voice energy was high on $peakDayName.",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
                         color = TextDark
                     )
@@ -397,14 +402,18 @@ private fun WeeklyReflectionCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(HiveGreen),
+                        .background(if (audioAvailable) HiveGreen else Color(0xFFE0E0E0)),
                     contentAlignment = Alignment.Center
                 ) {
-                    IconButton(onClick = onPlayClick, modifier = Modifier.size(40.dp)) {
+                    IconButton(
+                        onClick = onPlayClick,
+                        modifier = Modifier.size(40.dp),
+                        enabled = audioAvailable
+                    ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = Color.White,
+                            tint = if (audioAvailable) Color.White else Color(0xFFBBBBBB),
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -598,7 +607,46 @@ fun VoiceNoteCard(
                     )
                 }
             }
+
+            // Mood tags
+            val tags = note.moodTags.orEmpty()
+            if (tags.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    tags.forEach { tag ->
+                        MoodChip(tag)
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun MoodChip(tag: String) {
+    val (bgColor, textColor) = remember(tag) {
+        when (tag) {
+            // Positive / energetic
+            "Excited", "Energized", "Happy", "Grateful", "Hopeful", "Proud" ->
+                Color(0xFF2D6A4F) to Color.White
+            // Calm / reflective
+            "Calm", "Reflective", "Curious", "Nostalgic", "Determined", "Focused" ->
+                Color(0xFF4A4A8A) to Color.White
+            // Concerned / negative
+            "Frustrated", "Concerned", "Anxious", "Stressed", "Disappointed", "Angry" ->
+                Color(0xFFB85C38) to Color.White
+            else -> Color(0xFFE8E8E8) to Color(0xFF555555)
+        }
+    }
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = bgColor
+    ) {
+        Text(
+            tag,
+            style = MaterialTheme.typography.labelSmall.copy(color = textColor, fontWeight = FontWeight.Medium),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
     }
 }
 

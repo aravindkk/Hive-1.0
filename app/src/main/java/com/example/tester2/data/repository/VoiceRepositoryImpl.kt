@@ -181,4 +181,31 @@ class VoiceRepositoryImpl @Inject constructor(
             android.util.Log.e("VoiceRepo", "triggerTopicSummary failed: ${e.message}", e)
         }
     }
+
+    override suspend fun generateWeeklyReflection(userId: String): Result<com.example.tester2.data.model.WeeklyReflection?> {
+        return try {
+            val response = supabase.functions.invoke("generate-weekly-reflection") {
+                headers {
+                    append(io.ktor.http.HttpHeaders.ContentType, io.ktor.http.ContentType.Application.Json.toString())
+                }
+                setBody(buildJsonObject { put("user_id", userId) })
+            }
+            val json = Json { ignoreUnknownKeys = true }
+            val body = response.bodyAsText()
+            val parsed = json.decodeFromString<kotlinx.serialization.json.JsonObject>(body)
+            val teaser = parsed["teaser"]?.let {
+                if (it is kotlinx.serialization.json.JsonNull) null
+                else it.toString().removeSurrounding("\"")
+            }
+            if (teaser == null) return Result.success(null)
+            val audioPath = parsed["audio_path"]?.let {
+                if (it is kotlinx.serialization.json.JsonNull) null
+                else it.toString().removeSurrounding("\"")
+            }
+            Result.success(com.example.tester2.data.model.WeeklyReflection(teaser = teaser, audioPath = audioPath))
+        } catch (e: Exception) {
+            android.util.Log.e("VoiceRepo", "generateWeeklyReflection failed: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 }

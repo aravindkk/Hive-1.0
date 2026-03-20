@@ -9,10 +9,15 @@ import com.example.tester2.data.repository.LocationRepository
 import com.example.tester2.data.repository.VoiceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -25,6 +30,7 @@ class TimelineViewModel @Inject constructor(
     private val voiceRepository: VoiceRepository,
     private val audioPlayer: com.example.tester2.utils.AudioPlayer,
     private val locationRepository: LocationRepository,
+    private val supabase: SupabaseClient,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -37,21 +43,35 @@ class TimelineViewModel @Inject constructor(
     private val _areaName = MutableStateFlow("Your area")
     val areaName = _areaName.asStateFlow()
 
+    private val _weeklyReflection = MutableStateFlow<com.example.tester2.data.model.WeeklyReflection?>(null)
+    val weeklyReflection = _weeklyReflection.asStateFlow()
+
     val playingUrl = audioPlayer.playingUrl
 
-    val isWeeklyReflectionPlaying = audioPlayer.playingUrl
-        .map { it == WEEKLY_REFLECTION_ID }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    private val weeklyAudioUrl = _weeklyReflection
+        .map { it?.audioPath?.let { path -> voiceRepository.getAudioUrl(path) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val isWeeklyAudioPlaying = combine(audioPlayer.playingUrl, weeklyAudioUrl) { playing, url ->
+        url != null && playing == url
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private var voiceJob: kotlinx.coroutines.Job? = null
-
-    companion object {
-        private const val WEEKLY_REFLECTION_ID = "weekly-reflection-playlist"
-    }
 
     init {
         loadVoiceNotes()
         refreshAreaName()
+        loadWeeklyNarrative()
+    }
+
+    private fun loadWeeklyNarrative() {
+        viewModelScope.launch(Dispatchers.IO) {
+            supabase.auth.sessionStatus.first { it !is SessionStatus.Initializing }
+            val userId = supabase.auth.currentUserOrNull()?.id ?: return@launch
+            voiceRepository.generateWeeklyReflection(userId).onSuccess { reflection ->
+                _weeklyReflection.value = reflection
+            }
+        }
     }
 
     private var locationJob: kotlinx.coroutines.Job? = null
@@ -92,11 +112,10 @@ class TimelineViewModel @Inject constructor(
         }
     }
     
-    fun toggleWeeklyReflection() {
-        val urls = _voiceNotes.value
-            .take(5)
-            .map { voiceRepository.getAudioUrl(it.storagePath) }
-        audioPlayer.playPlaylist(urls, WEEKLY_REFLECTION_ID)
+    fun toggleWeeklyAudio() {
+        val url = weeklyAudioUrl.value ?: return
+        if (audioPlayer.playingUrl.value == url) audioPlayer.stop()
+        else audioPlayer.play(url)
     }
 
     fun toggleAudio(voiceNote: VoiceNote) {

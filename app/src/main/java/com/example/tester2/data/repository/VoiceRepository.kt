@@ -12,4 +12,5 @@ interface VoiceRepository {
     fun getAudioUrl(storagePath: String): String
     fun getTopicSummaryFlow(topicId: String): Flow<TopicSummary?>
     suspend fun triggerTopicSummary(topicId: String)
+    suspend fun generateWeeklyReflection(userId: String): Result<com.example.tester2.data.model.WeeklyReflection?>
 }
