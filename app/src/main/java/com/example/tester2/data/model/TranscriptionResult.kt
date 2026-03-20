@@ -11,4 +11,5 @@ data class TranscriptionResult(
     @SerialName("topic_title") val topicTitle: String? = null,
     @SerialName("voice_count") val voiceCount: Long = 0,
     @SerialName("is_milestone") val isMilestone: Boolean = false,
+    @SerialName("mood_tags") val moodTags: List<String>? = null,
 )

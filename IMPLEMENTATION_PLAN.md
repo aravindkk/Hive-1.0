@@ -329,10 +329,15 @@ ALTER TABLE voices ADD COLUMN username TEXT;  -- stored at insert time from auth
 - `POST_NOTIFICATIONS` permission requested at runtime (Android 13+) ✅ DONE
 - **Still needed:** (1) run `fcm_tokens` migration in SQL Editor, (2) `supabase functions deploy` × 3, (3) set up cron jobs on cron-job.org
 
-**32. AI Journaling** ⏳
-- `generate-weekly-reflection` scheduled edge function
-- Mood detection in `process-voice-clip`
-- Mood chip filter in My Thoughts; weekly AI narrative card
+**32. AI Journaling** ✅ DONE
+- `generate-weekly-reflection` edge function: takes `{ user_id }`, fetches last 7 days' voices, calls Gemini to write a warm 2-3 sentence personal narrative, returns `{ narrative }` synchronously
+- Mood detection in `transcribe-audio`: parallel Gemini call extracts 2-3 category tags (Traffic, Food, Community, Nature, etc.) → stored in `voices.mood_tags TEXT[]` → returned in transcription response
+- `VoiceNote` + `TranscriptionResult` models updated with `moodTags: List<String>?`
+- `MoodChip` composable in TimelineScreen: color-coded chips (Community=green, Traffic=orange, Nature=teal, Food=amber, else=gray) shown below each voice card
+- `WeeklyReflectionCard` updated: shows AI narrative text when available, falls back to computed peak-day text
+- `TimelineViewModel` fetches weekly narrative on init via `loadWeeklyNarrative()` (IO dispatcher)
+- SQL migration `20260319_mood_tags.sql`: `ALTER TABLE voices ADD COLUMN mood_tags TEXT[] DEFAULT '{}'`
+- **Still needed:** run migration in Supabase SQL Editor + `supabase functions deploy generate-weekly-reflection`
 
 **33. Map Exploration (F8)** ⏳
 - Full-screen Google Map; tap area → fetch topics by H3 → bubble overlay

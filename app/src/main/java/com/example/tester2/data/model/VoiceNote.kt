@@ -20,7 +20,9 @@ data class VoiceNote(
     val createdAt: String,
     val classification: String? = null,
     val username: String? = null,
-    val topics: TopicRef? = null
+    val topics: TopicRef? = null,
+    @SerialName("mood_tags")
+    val moodTags: List<String>? = null
 ) {
     val topicTitle: String? get() = topics?.title
 }

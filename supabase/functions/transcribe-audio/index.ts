@@ -59,6 +59,11 @@ serve(async (req) => {
         let matchedTopicId: string | null = null;
         let matchedTopicTitle: string | null = null;
 
+        // Mood tag detection always runs in parallel regardless of topic branch
+        const moodPromise = model.generateContent(
+            `Extract 1-2 mood tags that best describe the emotional tone of this voice note. Choose ONLY from: Excited, Grateful, Energized, Happy, Hopeful, Calm, Reflective, Curious, Nostalgic, Determined, Focused, Frustrated, Concerned, Anxious, Stressed, Disappointed. Return ONLY valid JSON with no markdown: {"tags": ["Tag1"]}. Transcript: "${transcript}"`
+        );
+
         if (existingTopicId) {
             // User explicitly chose this topic — trust their intent, no LLM classification needed
             const { data: topic } = await supabase
@@ -204,8 +209,21 @@ ${locationPrefix}
 
         console.log(`Classification: ${classification}, topic_id: ${matchedTopicId}`);
 
+        // Resolve mood tags
+        let moodTags: string[] = [];
+        try {
+            const moodResult = await moodPromise;
+            const moodText = moodResult.response.text().trim()
+                .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const parsed = JSON.parse(moodText);
+            moodTags = (parsed.tags ?? []).slice(0, 3);
+        } catch (e) {
+            console.error("Mood tag extraction failed:", e);
+        }
+        console.log(`Mood tags: ${moodTags.join(", ")}`);
+
         // 7. Update voices row
-        const updatePayload: any = { transcript, classification };
+        const updatePayload: any = { transcript, classification, mood_tags: moodTags };
         if (matchedTopicId) updatePayload.topic_id = matchedTopicId;
 
         const { error: updateError } = await supabase
@@ -231,7 +249,7 @@ ${locationPrefix}
             const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
             // 9a. Fire trending notification at milestone thresholds
-            const TRENDING_THRESHOLDS = [5, 10, 20];
+            const TRENDING_THRESHOLDS = [2, 4, 6, 8];
             if (TRENDING_THRESHOLDS.includes(voiceCount)) {
                 fetch(`${supabaseUrl}/functions/v1/send-trending-notification`, {
                     method: "POST",
@@ -251,7 +269,7 @@ ${locationPrefix}
         }
 
         return new Response(
-            JSON.stringify({ transcript, classification, topic_id: matchedTopicId, topic_title: matchedTopicTitle, voice_count: voiceCount, is_milestone: isMilestone }),
+            JSON.stringify({ transcript, classification, topic_id: matchedTopicId, topic_title: matchedTopicTitle, voice_count: voiceCount, is_milestone: isMilestone, mood_tags: moodTags }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
     } catch (error) {
