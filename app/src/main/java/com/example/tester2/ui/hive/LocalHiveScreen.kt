@@ -1,6 +1,7 @@
 package com.example.tester2.ui.hive
 
 import androidx.compose.animation.core.*
+import kotlin.math.abs
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,11 +27,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,18 +48,12 @@ import kotlin.math.sin
 
 private val IST = ZoneId.of("Asia/Kolkata")
 
-// Pastel bubble colors matching the design
-private val BubbleTeal   = Color(0xFFD1F2DF)
-private val BubbleBlue   = Color(0xFFE2F1F8)
-private val BubbleWhite  = Color(0xFFFFFFFF)
-private val BubbleCoral  = Color(0xFFFDE2DE)
-private val BubbleYellow = Color(0xFFFDF0A6)
+// Yellow gradient: pale (low popularity) → rich yellow (high popularity)
+private val YellowLight = Color(0xFFFEFCE8) // near-white yellow
+private val YellowDark  = Color(0xFFFACC15) // HiveYellowDark
 
-// Text colors for contrast
-private val TextTeal = Color(0xFF166534)
-private val TextBlue = Color(0xFF0C4A6E)
-private val TextCoral = Color(0xFF7F1D1D)
-private val TextYellow = Color(0xFF713F12)
+// Yellow is always bright — dark text on all shades
+private val TextOnYellow = Color(0xFF713F12) // dark amber-brown
 private val TextDark = Color(0xFF1A1A1A)
 
 private val tabLabels = listOf("Trending", "New", "My Topics")
@@ -67,7 +64,7 @@ private data class BubbleLayout(
     val sizeDp: Float,
     val x: Float,
     val y: Float,
-    val colorIndex: Int
+    val voiceRatio: Float  // 0.0 = least popular, 1.0 = most popular
 )
 
 private data class BubbleCanvasData(
@@ -243,7 +240,7 @@ fun LocalHiveScreen(
                             Bubble(
                                 topic = layout.topic,
                                 sizeDp = layout.sizeDp,
-                                colorIndex = layout.colorIndex,
+                                voiceRatio = layout.voiceRatio,
                                 x = layout.x,
                                 y = layout.y,
                                 onClick = {
@@ -378,12 +375,13 @@ private fun computeBubbleLayouts(topics: List<Topic>): BubbleCanvasData {
 
     val layouts = sorted.mapIndexed { index, topic ->
         val (offset, size, _) = centerRelative[index]
+        val ratio = Math.pow((topic.voiceCount.toFloat() / maxCount).toDouble(), 0.6).toFloat()
         BubbleLayout(
             topic = topic,
             sizeDp = size,
             x = offset.x - size / 2f - minX,
             y = offset.y - size / 2f - minY,
-            colorIndex = index
+            voiceRatio = ratio
         )
     }
 
@@ -394,58 +392,56 @@ private fun computeBubbleLayouts(topics: List<Topic>): BubbleCanvasData {
 private fun Bubble(
     topic: Topic,
     sizeDp: Float,
-    colorIndex: Int,
+    voiceRatio: Float,
     x: Float,
     y: Float,
     onClick: () -> Unit
 ) {
-    val bubbleColors = listOf(BubbleTeal, BubbleBlue, BubbleWhite, BubbleCoral, BubbleYellow)
-    val textColors = listOf(TextTeal, TextBlue, TextDark, TextCoral, TextYellow)
-    val safeIndex = colorIndex % bubbleColors.size
-    val color = bubbleColors[safeIndex]
-    val textColor = textColors[safeIndex]
+    val color = lerp(YellowLight, YellowDark, voiceRatio)
+    val textColor = TextOnYellow
     val size = sizeDp.dp
+
+    // Each bubble floats at its own pace — phase derived from topic ID so it's stable
+    val floatDuration = 2400 + (abs(topic.id.hashCode()) % 5) * 200 // 2400–3200ms
+    val phaseOffset = abs(topic.id.hashCode()) % floatDuration
+    val infiniteTransition = rememberInfiniteTransition(label = "float_${topic.id}")
+    val yFloat by infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(floatDuration, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+            initialStartOffset = StartOffset(phaseOffset, StartOffsetType.FastForward)
+        ),
+        label = "y_float"
+    )
 
     Box(
         modifier = Modifier
-            .offset(x = x.dp, y = y.dp)
+            .offset(x = x.dp, y = (y + yFloat).dp)
             .size(size)
-            .shadow(
-                elevation = if (color == BubbleWhite) 8.dp else 0.dp,
-                shape = CircleShape,
-                spotColor = Color.Black.copy(alpha = 0.1f)
-            )
+            .shadow(elevation = 2.dp, shape = CircleShape, spotColor = Color.Black.copy(alpha = 0.08f))
             .clip(CircleShape)
-            .background(color.copy(alpha = 0.9f))
-            .border(
-                width = 1.dp,
-                color = if (color == BubbleWhite) Color(0xFFD1D5DB) else Color.Transparent,
-                shape = CircleShape
-            )
+            .background(color)
             .clickable { onClick() }
-            .padding(12.dp),
+            .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                imageVector = categoryIcon(topic.title),
-                contentDescription = null,
-                tint = textColor,
-                modifier = Modifier.size(if (sizeDp < 110f) 18.dp else 26.dp)
-            )
             Text(
                 text = topic.title,
                 style = if (sizeDp < 110f)
-                    MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
+                    MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, fontSize = 10.sp)
                 else
-                    MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium, fontFamily = FontFamily.Serif),
+                    MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Serif),
                 textAlign = TextAlign.Center,
                 color = textColor,
-                lineHeight = if (sizeDp < 110f) 14.sp else 20.sp,
-                maxLines = 2
+                lineHeight = if (sizeDp < 110f) 13.sp else 18.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
             )
             if (sizeDp > 110f) {
                 Text(
